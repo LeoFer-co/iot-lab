@@ -11,170 +11,195 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        /* Paleta de colores basada en el logo */
-        :root {
-            --primary-bg: #2E3E4E; /* Azul grisáceo */
-            --primary-text: #FFFFFF; /* Texto claro */
-            --accent: #D07B2C; /* Naranja */
-            --card-bg: #FFFFFF; /* Fondo de tarjetas */
-            --card-border: #DDDDDD; /* Borde claro */
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Montserrat', sans-serif;
-            background-color: var(--primary-bg);
-            color: var(--primary-text);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
-
-        /* Encabezado con logo */
-        header {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            padding: 10px 20px;
-            background-color: var(--primary-bg);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-
-        .logo {
-            height: 50px;
-            margin-right: 10px;
-        }
-
-        .title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--accent);
-            margin: 0;
-        }
-
-        /* Contenedor principal */
-        main {
-            width: 100%;
-            max-width: 1400px;
-            margin: 20px auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        h1 {
-            font-size: 1.8rem;
-            margin: 20px 0;
-            color: var(--accent);
-        }
-
-        /* Grid de las gráficas */
-        .grid-container {
-            width: 100%;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            grid-gap: 20px;
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
-
-        /* Tarjeta de cada gráfica */
-        .chart-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 5px;
-            padding: 10px;
-            box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            height: 400px; /* Altura fija para la gráfica */
-        }
-
-            .chart-card h2 {
-                font-size: 1rem;
-                margin: 0 0 10px 0;
-                color: var(--primary-bg);
-                text-align: center;
+            /*
+          Paleta de colores inspirada en el logo:
+          - Fondo principal (body): #1C242C (azul oscuro/negro)
+          - Cabecera: #2E3E4E (un tono algo más claro)
+          - Acento (texto destacado): #D07B2C (naranja del logo)
+          - Cartas (tarjetas) con un gris oscuro #2A333B
+          - Texto principal claro #F0F0F0
+        */
+            :root {
+                --body-bg: #1C242C;
+                --header-bg: #2E3E4E;
+                --accent: #D07B2C;
+                --card-bg: #2A333B;
+                --card-border: #424F5B;
+                --text-color: #F0F0F0;
+                --text-secondary: #B0B0B0;
             }
 
-        .chart-container {
-            flex: 1;
-            position: relative;
-        }
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
 
-        canvas {
-            width: 100% !important;
-            height: 100% !important;
-        }
+            body {
+                font-family: 'Montserrat', sans-serif;
+                background-color: var(--body-bg);
+                color: var(--text-color);
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+            }
 
-        /* Responsivo para pantallas muy pequeñas (opcional) */
-        @media (max-width: 480px) {
-            .chart-card {
-                height: 300px;
+            /* Cabecera con logo y título */
+            header {
+                background-color: var(--header-bg);
+                display: flex;
+                align-items: center;
+                padding: 10px 20px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            }
+
+            .logo {
+                height: 50px;
+                margin-right: 15px;
+            }
+
+            .header-title {
+                font-size: 1.6rem;
+                font-weight: 600;
+                color: var(--accent);
+            }
+
+            main {
+                max-width: 1400px;
+                width: 100%;
+                margin: 20px auto;
+                padding: 0 20px;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
             }
 
             h1 {
-                font-size: 1.4rem;
+                font-size: 1.8rem;
+                color: var(--accent);
+                text-align: center;
+                margin-bottom: 20px;
             }
-        }
+
+            /* Grid responsive:
+           - 3 columnas en pantallas anchas,
+           - 2 columnas en medianas,
+           - 1 columna en móviles */
+            .grid-container {
+                display: grid;
+                grid-gap: 20px;
+                /* 3 columnas a partir de 1024px */
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            @media (max-width: 1023px) {
+                /* 2 columnas en pantallas medianas */
+                .grid-container {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+            @media (max-width: 599px) {
+                /* 1 columna en pantallas pequeñas */
+                .grid-container {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            .chart-card {
+                background-color: var(--card-bg);
+                border: 1px solid var(--card-border);
+                border-radius: 6px;
+                padding: 15px;
+                box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
+                display: flex;
+                flex-direction: column;
+                height: 400px; /* Ajusta la altura según prefieras */
+            }
+
+            .chart-title {
+                text-align: center;
+                margin-bottom: 10px;
+                font-size: 1rem;
+                color: var(--accent);
+            }
+
+            .chart-container {
+                flex: 1;
+                position: relative;
+            }
+
+            canvas {
+                width: 100% !important;
+                height: 100% !important;
+            }
+
+            footer {
+                text-align: center;
+                padding: 10px 0;
+                color: var(--text-secondary);
+            }
     </style>
 </head>
 <body>
-    <!-- Encabezado con logo y título -->
     <header>
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects" class="logo" />
-        <h1 class="title">LC Projects - Dashboard IoT</h1>
+        <!-- Logo -->
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" class="logo" />
+        <h2 class="header-title">LC Projects - Dashboard IoT</h2>
     </header>
 
     <main>
         <h1>Mediciones en tiempo real</h1>
+
         <div class="grid-container">
             <!-- Tarjeta 1: Temperatura -->
             <div class="chart-card">
-                <h2>Temperatura (°C)</h2>
+                <div class="chart-title">Temperatura (°C)</div>
                 <div class="chart-container">
                     <canvas id="tempChart"></canvas>
                 </div>
             </div>
             <!-- Tarjeta 2: Humedad -->
             <div class="chart-card">
-                <h2>Humedad (%)</h2>
+                <div class="chart-title">Humedad (%)</div>
                 <div class="chart-container">
                     <canvas id="humChart"></canvas>
                 </div>
             </div>
             <!-- Tarjeta 3: Presión -->
             <div class="chart-card">
-                <h2>Presión (hPa)</h2>
+                <div class="chart-title">Presión (hPa)</div>
                 <div class="chart-container">
                     <canvas id="presChart"></canvas>
                 </div>
             </div>
             <!-- Tarjeta 4: Luz -->
             <div class="chart-card">
-                <h2>Luz (lx)</h2>
+                <div class="chart-title">Luz (lx)</div>
                 <div class="chart-container">
                     <canvas id="lightChart"></canvas>
                 </div>
             </div>
             <!-- Tarjeta 5: Sonido -->
             <div class="chart-card">
-                <h2>Sonido (dB)</h2>
+                <div class="chart-title">Sonido (dB)</div>
                 <div class="chart-container">
                     <canvas id="soundChart"></canvas>
                 </div>
             </div>
             <!-- Tarjeta 6: Voltaje -->
             <div class="chart-card">
-                <h2>Voltaje (V)</h2>
+                <div class="chart-title">Voltaje (V)</div>
                 <div class="chart-container">
                     <canvas id="voltChart"></canvas>
                 </div>
             </div>
         </div>
     </main>
+
+    <footer>
+        &copy; 2023 LC Projects
+    </footer>
 
     <script>
     // Variables globales para las instancias de Chart
@@ -191,6 +216,7 @@
             label: label,
             data: dataArray,
             borderColor: color,
+            backgroundColor: 'rgba(0,0,0,0)', // transparente
             fill: false,
             tension: 0.1
           }]
@@ -203,12 +229,25 @@
               title: {
                 display: true,
                 text: 'Timestamp'
+              },
+              ticks: {
+                color: "#FFFFFF" // color del texto en eje X
               }
             },
             y: {
               title: {
                 display: true,
                 text: label
+              },
+              ticks: {
+                color: "#FFFFFF" // color del texto en eje Y
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: "#FFFFFF" // color de la leyenda
               }
             }
           }
@@ -260,12 +299,13 @@
     const voltVals   = {{ volt_vals|safe }};
 
     // Crear las 6 gráficas
-    tempChart  = createLineChart('tempChart',  'Temperatura (°C)', timestamps, tempVals,  'rgba(255, 99, 132, 1)');
-    humChart   = createLineChart('humChart',   'Humedad (%)',     timestamps, humVals,   'rgba(54, 162, 235, 1)');
-    presChart  = createLineChart('presChart',  'Presión (hPa)',   timestamps, presVals,  'rgba(255, 206, 86, 1)');
-    lightChart = createLineChart('lightChart', 'Luz (lx)',        timestamps, lightVals, 'rgba(75, 192, 192, 1)');
-    soundChart = createLineChart('soundChart', 'Sonido (dB)',     timestamps, soundVals, 'rgba(153, 102, 255, 1)');
-    voltChart  = createLineChart('voltChart',  'Voltaje (V)',     timestamps, voltVals,  'rgba(255, 159, 64, 1)');
+    // Colores que combinen con el naranja y azul del logo
+    tempChart  = createLineChart('tempChart',  'Temperatura (°C)', timestamps, tempVals,  '#FF5A5F');
+    humChart   = createLineChart('humChart',   'Humedad (%)',     timestamps, humVals,   '#5FC3E4');
+    presChart  = createLineChart('presChart',  'Presión (hPa)',   timestamps, presVals,  '#FFC45F');
+    lightChart = createLineChart('lightChart', 'Luz (lx)',        timestamps, lightVals, '#58FFC4');
+    soundChart = createLineChart('soundChart', 'Sonido (dB)',     timestamps, soundVals, '#BDAAFF');
+    voltChart  = createLineChart('voltChart',  'Voltaje (V)',     timestamps, voltVals,  '#FFA85F');
 
     // Actualizar cada 5 segundos
     setInterval(updateCharts, 5000);
