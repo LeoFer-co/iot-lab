@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{{ device.device_name|capitalize }} - Microdós</title>
+    <title>{{ device.device_name|capitalize }} - MicrodÃ³s</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
@@ -40,7 +40,7 @@
     </style>
 </head>
 <body>
-    <h1>{{ device.device_name|capitalize }} (Microdós)</h1>
+    <h1>{{ device.device_name|capitalize }} (MicrodÃ³s)</h1>
     {% if row %}
     <div class="status-panel">
         <p><strong>Estado:</strong> {{ row.status }}</p>
@@ -48,7 +48,7 @@
         <p><strong>Tiempo restante:</strong> {{ row.time_left }} s</p>
     </div>
     {% else %}
-    <p>No hay datos registrados aún.</p>
+    <p>No hay datos registrados aÃºn.</p>
     {% endif %}
     <p style="text-align:center;"><a href="{{ url_for('home') }}">Volver</a></p>
 </body>
