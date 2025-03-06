@@ -2,58 +2,182 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>Dashboard IoT - 6 Gráficas en Tiempo Real</title>
+    <title>LC Projects - Dashboard IoT</title>
+
+    <!-- Fuente Montserrat desde Google Fonts -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+        /* Paleta de colores basada en el logo */
+        :root {
+            --primary-bg: #2E3E4E; /* Azul grisáceo */
+            --primary-text: #FFFFFF; /* Texto claro */
+            --accent: #D07B2C; /* Naranja */
+            --card-bg: #FFFFFF; /* Fondo de tarjetas */
+            --card-border: #DDDDDD; /* Borde claro */
         }
 
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-gap: 20px;
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--primary-text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
         }
+
+        /* Encabezado con logo */
+        header {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: var(--primary-bg);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            height: 50px;
+            margin-right: 10px;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 0;
+        }
+
+        /* Contenedor principal */
+        main {
+            width: 100%;
+            max-width: 1400px;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin: 20px 0;
+            color: var(--accent);
+        }
+
+        /* Grid de las gráficas */
+        .grid-container {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-gap: 20px;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        /* Tarjeta de cada gráfica */
+        .chart-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 5px;
+            padding: 10px;
+            box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 400px; /* Altura fija para la gráfica */
+        }
+
+            .chart-card h2 {
+                font-size: 1rem;
+                margin: 0 0 10px 0;
+                color: var(--primary-bg);
+                text-align: center;
+            }
 
         .chart-container {
-            background-color: #f9f9f9;
-            border: 1px solid #ddd;
-            padding: 10px;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            flex: 1;
+            position: relative;
         }
 
         canvas {
-            width: 100%;
-            height: 300px;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* Responsivo para pantallas muy pequeñas (opcional) */
+        @media (max-width: 480px) {
+            .chart-card {
+                height: 300px;
+            }
+
+            h1 {
+                font-size: 1.4rem;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Dashboard IoT en Tiempo Real</h1>
-    <div class="grid-container">
-        <div class="chart-container">
-            <canvas id="tempChart"></canvas>
+    <!-- Encabezado con logo y título -->
+    <header>
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects" class="logo" />
+        <h1 class="title">LC Projects - Dashboard IoT</h1>
+    </header>
+
+    <main>
+        <h1>Mediciones en tiempo real</h1>
+        <div class="grid-container">
+            <!-- Tarjeta 1: Temperatura -->
+            <div class="chart-card">
+                <h2>Temperatura (°C)</h2>
+                <div class="chart-container">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+            <!-- Tarjeta 2: Humedad -->
+            <div class="chart-card">
+                <h2>Humedad (%)</h2>
+                <div class="chart-container">
+                    <canvas id="humChart"></canvas>
+                </div>
+            </div>
+            <!-- Tarjeta 3: Presión -->
+            <div class="chart-card">
+                <h2>Presión (hPa)</h2>
+                <div class="chart-container">
+                    <canvas id="presChart"></canvas>
+                </div>
+            </div>
+            <!-- Tarjeta 4: Luz -->
+            <div class="chart-card">
+                <h2>Luz (lx)</h2>
+                <div class="chart-container">
+                    <canvas id="lightChart"></canvas>
+                </div>
+            </div>
+            <!-- Tarjeta 5: Sonido -->
+            <div class="chart-card">
+                <h2>Sonido (dB)</h2>
+                <div class="chart-container">
+                    <canvas id="soundChart"></canvas>
+                </div>
+            </div>
+            <!-- Tarjeta 6: Voltaje -->
+            <div class="chart-card">
+                <h2>Voltaje (V)</h2>
+                <div class="chart-container">
+                    <canvas id="voltChart"></canvas>
+                </div>
+            </div>
         </div>
-        <div class="chart-container">
-            <canvas id="humChart"></canvas>
-        </div>
-        <div class="chart-container">
-            <canvas id="presChart"></canvas>
-        </div>
-        <div class="chart-container">
-            <canvas id="lightChart"></canvas>
-        </div>
-        <div class="chart-container">
-            <canvas id="soundChart"></canvas>
-        </div>
-        <div class="chart-container">
-            <canvas id="voltChart"></canvas>
-        </div>
-    </div>
+    </main>
 
     <script>
-    // Variables globales para almacenar las instancias de Chart
+    // Variables globales para las instancias de Chart
     let tempChart, humChart, presChart, lightChart, soundChart, voltChart;
 
     // Función para crear un gráfico de línea
@@ -92,26 +216,28 @@
       });
     }
 
-    // Función para actualizar los gráficos con nuevos datos
+    // Función para actualizar los gráficos en tiempo real
     async function updateCharts() {
       try {
-        // Consultar el endpoint que devuelve los datos (ver sección Backend a continuación)
         const response = await fetch('/data');
         const result = await response.json();
+
         const { timestamps, temp_vals, hum_vals, pres_vals, light_vals, sound_vals, volt_vals } = result;
 
-        // Actualizar datos de cada gráfico y refrescarlo
+        // Actualizar ejes x
         [tempChart, humChart, presChart, lightChart, soundChart, voltChart].forEach(chart => {
           chart.data.labels = timestamps;
         });
-        tempChart.data.datasets[0].data = temp_vals;
-        humChart.data.datasets[0].data = hum_vals;
-        presChart.data.datasets[0].data = pres_vals;
+
+        // Actualizar ejes y
+        tempChart.data.datasets[0].data  = temp_vals;
+        humChart.data.datasets[0].data   = hum_vals;
+        presChart.data.datasets[0].data  = pres_vals;
         lightChart.data.datasets[0].data = light_vals;
         soundChart.data.datasets[0].data = sound_vals;
-        voltChart.data.datasets[0].data = volt_vals;
+        voltChart.data.datasets[0].data  = volt_vals;
 
-        // Refrescar los gráficos
+        // Redibujar
         tempChart.update();
         humChart.update();
         presChart.update();
@@ -120,12 +246,11 @@
         voltChart.update();
 
       } catch (error) {
-        console.error('Error al actualizar los gráficos:', error);
+        console.error("Error al actualizar los gráficos:", error);
       }
     }
 
-    // Inicializar los gráficos con datos iniciales (pasados desde Flask)
-    // Estos datos se pasan desde Flask mediante la renderización de la plantilla
+    // Datos iniciales pasados desde Flask
     const timestamps = {{ timestamps|safe }};
     const tempVals   = {{ temp_vals|safe }};
     const humVals    = {{ hum_vals|safe }};
@@ -134,15 +259,15 @@
     const soundVals  = {{ sound_vals|safe }};
     const voltVals   = {{ volt_vals|safe }};
 
-    // Crear los 6 gráficos
-    tempChart   = createLineChart('tempChart',  'Temperatura (°C)', timestamps, tempVals,  'rgba(255, 99, 132, 1)');
-    humChart    = createLineChart('humChart',   'Humedad (%)',     timestamps, humVals,   'rgba(54, 162, 235, 1)');
-    presChart   = createLineChart('presChart',  'Presión (hPa)',   timestamps, presVals,  'rgba(255, 206, 86, 1)');
-    lightChart  = createLineChart('lightChart', 'Luz (lx)',        timestamps, lightVals, 'rgba(75, 192, 192, 1)');
-    soundChart  = createLineChart('soundChart', 'Sonido (dB)',     timestamps, soundVals, 'rgba(153, 102, 255, 1)');
-    voltChart   = createLineChart('voltChart',  'Voltaje (V)',     timestamps, voltVals,  'rgba(255, 159, 64, 1)');
+    // Crear las 6 gráficas
+    tempChart  = createLineChart('tempChart',  'Temperatura (°C)', timestamps, tempVals,  'rgba(255, 99, 132, 1)');
+    humChart   = createLineChart('humChart',   'Humedad (%)',     timestamps, humVals,   'rgba(54, 162, 235, 1)');
+    presChart  = createLineChart('presChart',  'Presión (hPa)',   timestamps, presVals,  'rgba(255, 206, 86, 1)');
+    lightChart = createLineChart('lightChart', 'Luz (lx)',        timestamps, lightVals, 'rgba(75, 192, 192, 1)');
+    soundChart = createLineChart('soundChart', 'Sonido (dB)',     timestamps, soundVals, 'rgba(153, 102, 255, 1)');
+    voltChart  = createLineChart('voltChart',  'Voltaje (V)',     timestamps, voltVals,  'rgba(255, 159, 64, 1)');
 
-    // Configura una actualización en tiempo real: cada 5 segundos consulta el endpoint y actualiza los gráficos
+    // Actualizar cada 5 segundos
     setInterval(updateCharts, 5000);
     </script>
 </body>
