@@ -5,6 +5,7 @@ import json
 app = Flask(__name__)
 
 def get_measurements():
+   
     # Conectar a la base de datos usando la ruta montada (la base se encuentra en ../data/data.db)
     conn = sqlite3.connect('../data/data.db')
     cursor = conn.cursor()
