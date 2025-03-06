@@ -4,18 +4,27 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-OFFLINE_THRESHOLD = 10  # seg para marcar desconexión
+OFFLINE_THRESHOLD = 10  # segundos para marcar desconexión
 
 def get_db():
-    conn = sqlite3.connect("data/data.db")  # Ajusta la ruta si es diferente
+    conn = sqlite3.connect("data/data.db")  # Ajusta la ruta si difiere
     conn.row_factory = sqlite3.Row
     return conn
 
 @app.route("/")
 def home():
     """
-    Lista todos los dispositivos de la tabla 'devices'.
-    Si su last_seen supera OFFLINE_THRESHOLD, se marcan como 'Desconectado'.
+    Renderiza la plantilla home.html con un contenedor vacío.
+    El llenado/actualización de la lista de dispositivos
+    se hace en tiempo real via JavaScript y el endpoint /devices_data.
+    """
+    return render_template("home.html")
+
+@app.route("/devices_data")
+def devices_data():
+    """
+    Devuelve en JSON la lista de dispositivos (tabla 'devices'),
+    indicando si están desconectados (diff > OFFLINE_THRESHOLD) o su estado actual.
     """
     conn = get_db()
     cursor = conn.cursor()
@@ -24,11 +33,11 @@ def home():
     conn.close()
 
     now = datetime.now()
-    devices_data = []
+    devices_list = []
     for dev in rows:
         dev_dict = dict(dev)
         try:
-            last_seen_str = dev_dict["last_seen"]  # p.ej. "YYYY-MM-DD HH:MM:SS"
+            last_seen_str = dev_dict["last_seen"]  # "YYYY-MM-DD HH:MM:SS"
             last_dt = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
             diff = (now - last_dt).total_seconds()
             if diff > OFFLINE_THRESHOLD:
@@ -37,17 +46,17 @@ def home():
                 dev_dict["status_final"] = dev_dict["last_status"]
         except:
             dev_dict["status_final"] = "Desconocido"
-        devices_data.append(dev_dict)
+        devices_list.append(dev_dict)
 
-    return render_template("home.html", devices_data=devices_data)
+    return jsonify(devices_list)
 
 @app.route("/device/<device_name>")
 def device_detail(device_name):
     """
-    Página de detalle de un dispositivo. 
-    Si está offline, se muestra error 403. 
-    Si device_type='estacion', renderiza device_estacion.html, 
-    si device_type='microdos', renderiza device_microdos.html.
+    Página de detalle de un dispositivo.
+    Si está desconectado, muestra error 403.
+    Si es 'estacion', renderiza device_estacion.html (3 gráficas separadas).
+    Si es 'microdos', renderiza device_microdos.html (panel de estado).
     """
     conn = get_db()
     cursor = conn.cursor()
@@ -57,7 +66,7 @@ def device_detail(device_name):
         conn.close()
         return "Dispositivo no encontrado", 404
 
-    # Detectar si está desconectado
+    # Detectar desconexión
     try:
         last_dt = datetime.strptime(device["last_seen"], "%Y-%m-%d %H:%M:%S")
         diff = (datetime.now() - last_dt).total_seconds()
@@ -71,12 +80,11 @@ def device_detail(device_name):
     device_type = device["device_type"]
 
     if device_type == "estacion":
-        # Cargar las últimas 30 mediciones
+        # Cargar 30 mediciones
         cursor.execute("SELECT * FROM measurements_estacion ORDER BY id DESC LIMIT 30")
         rows = cursor.fetchall()
         conn.close()
 
-        # Invertir y separar arrays
         timestamps, temps, hums, press = [], [], [], []
         for r in reversed(rows):
             timestamps.append(r["timestamp"])
@@ -92,23 +100,18 @@ def device_detail(device_name):
                                press=press)
 
     elif device_type == "microdos":
-        # Cargar la última medición
+        # Última medición
         cursor.execute("SELECT * FROM measurements_microdos ORDER BY id DESC LIMIT 1")
         last_row = cursor.fetchone()
         conn.close()
         return render_template("device_microdos.html", device=device, row=last_row)
-
     else:
         conn.close()
         return f"Tipo de dispositivo desconocido: {device_type}", 400
 
-# --- ENDPOINTS PARA DATOS EN TIEMPO REAL ---
+# Endpoints de tiempo real para la vista Estación y Microdós (si los usas)
 @app.route("/device/<device_name>/estacion_data")
 def device_estacion_data(device_name):
-    """
-    Devuelve JSON con las últimas 30 mediciones (timestamps, temps, hums, press) para la Estación,
-    usado por device_estacion.html para actualizar en tiempo real.
-    """
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='estacion'", (device_name,))
@@ -140,10 +143,6 @@ def device_estacion_data(device_name):
 
 @app.route("/device/<device_name>/microdos_data")
 def device_microdos_data(device_name):
-    """
-    Devuelve JSON con la última medición (status, flow_set, time_left) para Microdós,
-    usado por device_microdos.html para actualizar en tiempo real.
-    """
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='microdos'", (device_name,))

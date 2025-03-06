@@ -19,7 +19,7 @@
             --card-border: #424F5B;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
-            --offline-card-bg: #4B1E1E; /* un rojo oscuro para dispositivos desconectados */
+            --offline-card-bg: #4B1E1E;
         }
 
         * {
@@ -126,28 +126,83 @@
 
     <main>
         <h1>Dispositivos en la red</h1>
-        <div class="device-grid">
-            {% for dev in devices_data %}
-            {% if dev.status_final == "Desconectado" %}
-            <div class="device-card offline-card">
-                {% else %}
-                <div class="device-card">
-                    {% endif %}
-                    <h3>{{ dev.device_name|capitalize }}</h3>
-                    <p>Tipo: {{ dev.device_type }}</p>
-                    <p>Estado: {{ dev.status_final }}</p>
-                    {% if dev.status_final == "Desconectado" %}
-                    <a class="disabled">Ver Detalles</a>
-                    {% else %}
-                    <a href="{{ url_for('device_detail', device_name=dev.device_name) }}">Ver Detalles</a>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
+        <!-- Contenedor donde iremos añadiendo las tarjetas -->
+        <div class="device-grid" id="deviceGrid">
+            <!-- Se llenará dinámicamente con JS -->
+        </div>
     </main>
 
     <footer>
         2025 - LC Projects
     </footer>
+
+    <script>
+        const deviceGrid = document.getElementById('deviceGrid');
+
+        // Función para construir la tarjeta de un dispositivo
+        function buildDeviceCard(dev) {
+            // dev tiene: device_name, device_type, last_status, status_final, etc.
+            let cardDiv = document.createElement('div');
+            cardDiv.classList.add('device-card');
+
+            if (dev.status_final === "Desconectado") {
+                cardDiv.classList.add('offline-card');
+            }
+
+            // Título
+            let h3 = document.createElement('h3');
+            h3.textContent = dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
+            cardDiv.appendChild(h3);
+
+            // Tipo
+            let pTipo = document.createElement('p');
+            pTipo.textContent = "Tipo: " + dev.device_type;
+            cardDiv.appendChild(pTipo);
+
+            // Estado
+            let pEstado = document.createElement('p');
+            pEstado.textContent = "Estado: " + dev.status_final;
+            cardDiv.appendChild(pEstado);
+
+            // Link
+            if (dev.status_final === "Desconectado") {
+                let aDisabled = document.createElement('a');
+                aDisabled.classList.add('disabled');
+                aDisabled.textContent = "Ver Detalles";
+                cardDiv.appendChild(aDisabled);
+            } else {
+                let aLink = document.createElement('a');
+                aLink.href = "/device/" + dev.device_name;
+                aLink.textContent = "Ver Detalles";
+                cardDiv.appendChild(aLink);
+            }
+
+            return cardDiv;
+        }
+
+        // Función para actualizar la lista de dispositivos
+        async function updateDevices() {
+            try {
+                const resp = await fetch("/devices_data");
+                const devices = await resp.json();
+
+                // Limpia el grid
+                deviceGrid.innerHTML = "";
+
+                // Construye las tarjetas
+                devices.forEach(dev => {
+                    let card = buildDeviceCard(dev);
+                    deviceGrid.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Error al actualizar dispositivos:", err);
+            }
+        }
+
+        // Llamar cada 5s
+        setInterval(updateDevices, 5000);
+        // Llamada inicial
+        updateDevices();
+    </script>
 </body>
 </html>
