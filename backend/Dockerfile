@@ -12,4 +12,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Indica el comando para iniciar el backend
-CMD ["python", "mqtt_subscriber.py"]
+CMD ["python", "-u", "mqtt_subscriber.py"]
