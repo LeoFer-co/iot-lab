@@ -1,46 +1,44 @@
 import paho.mqtt.client as mqtt
 import sqlite3
+import json
 
-# -------------------------
-# Configuración de SQLite
-# -------------------------
-
-# Conecta (o crea) la base de datos "data.db" en el mismo directorio
+# Conectar (o crear) la base de datos en la carpeta data (asegúrate de que esté montada)
 conn = sqlite3.connect('data/data.db', check_same_thread=False)
 cursor = conn.cursor()
 
-# Crea la tabla measurements si no existe
+# Crear la tabla measurements con 6 columnas
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS measurements (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        topic TEXT,
-        message TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        temp REAL,
+        hum REAL,
+        pres REAL,
+        light REAL,
+        sound REAL,
+        voltage REAL
     )
 ''')
 conn.commit()
 
-# -------------------------
-# Funciones de callbacks MQTT
-# -------------------------
-
 def on_connect(client, userdata, flags, rc):
     print("Conectado con resultado: " + str(rc))
-    # Nos suscribimos al tópico que publica el ESP32
-    client.subscribe("lab/equipo1/temperatura")
+    # Suscribirse al tópico donde el ESP32 publica la data en JSON
+    client.subscribe("lab/equipo1/data")
 
 def on_message(client, userdata, msg):
-    mensaje = msg.payload.decode()
-    print(f"Mensaje recibido en {msg.topic}: {mensaje}")
-    # Inserta el mensaje en la base de datos
-    cursor.execute("INSERT INTO measurements (topic, message) VALUES (?, ?)", (msg.topic, mensaje))
-    conn.commit()
+    try:
+        data = json.loads(msg.payload.decode())
+        print("Datos recibidos:", data)
+        cursor.execute('''
+            INSERT INTO measurements (temp, hum, pres, light, sound, voltage)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (data.get("temp"), data.get("hum"), data.get("pres"), data.get("light"), data.get("sound"), data.get("voltage")))
+        conn.commit()
+    except Exception as e:
+        print("Error al procesar el mensaje:", e)
 
-# -------------------------
-# Configuración del cliente MQTT
-# -------------------------
-
-broker = "broker"  # Usamos el nombre del servicio en Docker Compose o la IP, según tu configuración
+broker = "broker"  # Usamos el nombre del servicio en Docker Compose
 port = 1883
 
 client = mqtt.Client()
@@ -49,9 +47,4 @@ client.on_message = on_message
 
 print("Conectando al broker MQTT...")
 client.connect(broker, port, 60)
-
-# -------------------------
-# Bucle principal: procesa mensajes indefinidamente
-# -------------------------
-
 client.loop_forever()

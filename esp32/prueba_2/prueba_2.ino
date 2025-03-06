@@ -1,36 +1,28 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <math.h>  // Para la función sin()
+#include <math.h>  // Para sin()
 
 // Configura tus credenciales Wi-Fi
 const char* ssid = "Casa_leo";
 const char* password = "Odranoel";
 
 // IP del broker MQTT (la IP de tu Raspberry Pi)
-const char* mqtt_server = "192.168.100.10";  // Reemplaza X por la IP correcta
+const char* mqtt_server = "192.168.100.10";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-// Función callback (opcional, si deseas recibir mensajes)
+// Callback opcional (puedes dejarlo vacío si no necesitas recibir mensajes)
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Mensaje recibido [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
+  // Si deseas procesar mensajes entrantes, implementa aquí.
 }
 
 void reconnect() {
-  // Intenta reconectar al broker MQTT hasta tener conexión
   while (!client.connected()) {
     Serial.print("Intentando conectar al broker MQTT...");
     if (client.connect("ESP32_Client")) {
       Serial.println("Conectado");
-      // Si deseas suscribirte a algún tópico, hazlo aquí:
-      // client.subscribe("lab/equipo1/otro_topico");
+      // No es necesario suscribirse si solo publicas
     } else {
       Serial.print("Fallo, rc=");
       Serial.print(client.state());
@@ -74,16 +66,23 @@ void loop() {
   if (millis() - lastPublish > 5000) {
     lastPublish = millis();
     
-    // Calcula un valor variable usando la función seno.
-    // La frecuencia de la señal depende del factor multiplicativo en el argumento de sin().
-    // Por ejemplo, si usamos: (millis()/1000.0)*PI/5, tendremos una oscilación lenta.
-    float angle = (millis() / 1000.0) * (PI / 5); // Ajusta la frecuencia según convenga
-    float temperatura = 25.0 + 5.0 * sin(angle);  // Valor base 25.0, variación ±5.0 grados
+    // Calcular valores simulados usando funciones seno (o cualquier otra función)
+    float angle = (millis() / 1000.0) * (PI / 5);  // Ajusta la frecuencia si es necesario
+    float temp    = 25.0 + 5.0 * sin(angle);
+    float hum     = 50.0 + 10.0 * sin(angle + 1);
+    float pres    = 1013.0 + 3.0 * sin(angle + 2);
+    float light   = 300.0 + 100.0 * sin(angle + 3);
+    float sound   = 60.0 + 5.0 * sin(angle + 4);
+    float voltage = 3.3 + 0.1 * sin(angle + 5);
     
-    char tempStr[16];
-    dtostrf(temperatura, 5, 2, tempStr);  // Convierte el float a cadena (ancho 5, 2 decimales)
-    client.publish("lab/equipo1/temperatura", tempStr);
-    Serial.print("Publicada temperatura: ");
-    Serial.println(tempStr);
+    // Crear el string JSON con 6 campos
+    char payload[128];
+    snprintf(payload, sizeof(payload),
+             "{\"temp\":%.2f,\"hum\":%.2f,\"pres\":%.2f,\"light\":%.2f,\"sound\":%.2f,\"voltage\":%.2f}",
+             temp, hum, pres, light, sound, voltage);
+    
+    client.publish("lab/equipo1/data", payload);
+    Serial.print("Publicado: ");
+    Serial.println(payload);
   }
 }
