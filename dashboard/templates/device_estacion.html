@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>{{ device.device_name|capitalize }} - Microdós</title>
+    <meta charset="UTF-8" />
+    <title>{{ device.device_name|capitalize }} - Estación</title>
 
-    <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -17,9 +19,6 @@
             --accent: #D07B2C;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
-            --running: #5FC3E4;
-            --idle: #B0B0B0;
-            --finished: #FF5A5F;
         }
 
         body {
@@ -36,69 +35,47 @@
             margin-bottom: 20px;
         }
 
-        .status-container {
-            max-width: 600px;
-            margin: 0 auto;
+        .grid-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-card {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
-        }
-
-            .status-container h2 {
-                color: var(--accent);
-                margin-bottom: 15px;
-            }
-
-        .status-panel {
+            padding: 15px;
+            height: 350px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            align-items: center;
-            margin-top: 10px;
         }
 
-        .status-item {
-            background-color: #343F48;
-            border-radius: 6px;
-            padding: 10px 20px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-color);
-            font-size: 1.1rem;
-        }
-
-        .status-label {
-            font-weight: 600;
-        }
-
-        .status-value {
-            font-weight: 400;
-        }
-
-            .status-value.running {
-                color: var(--running);
-            }
-
-            .status-value.idle {
-                color: var(--idle);
-            }
-
-            .status-value.finished {
-                color: var(--finished);
-            }
-
-        .center {
+        .chart-title {
+            color: var(--accent);
             text-align: center;
-            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .chart-container {
+            flex: 1;
+            position: relative;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
         }
 
         a {
             color: #5FC3E4;
             text-decoration: none;
+        }
+
+        .center {
+            text-align: center;
+            margin-top: 10px;
         }
 
         footer {
@@ -109,12 +86,27 @@
     </style>
 </head>
 <body>
-    <h1>{{ device.device_name|capitalize }} (Microdós)</h1>
+    <h1>{{ device.device_name|capitalize }} (Estación Meteorológica)</h1>
 
-    <div class="status-container">
-        <h2>Estado del Equipo</h2>
-        <div class="status-panel" id="microdosPanel">
-            <!-- Se llenará dinámicamente -->
+    <!-- Tres tarjetas, una por cada gráfica -->
+    <div class="grid-charts">
+        <div class="chart-card">
+            <div class="chart-title">Temperatura (°C)</div>
+            <div class="chart-container">
+                <canvas id="tempChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">Humedad (%)</div>
+            <div class="chart-container">
+                <canvas id="humChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">Presión (hPa)</div>
+            <div class="chart-container">
+                <canvas id="presChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -127,44 +119,95 @@
     </footer>
 
     <script>
-    async function updateMicrodosStatus() {
-      try {
-        const resp = await fetch('{{ url_for("device_microdos_data", device_name=device.device_name) }}');
-        const data = await resp.json();
-        // data => { status, flow_set, time_left }
+    let tempChart, humChart, presChart;
 
-        const panel = document.getElementById('microdosPanel');
-        if (!data) {
-          panel.innerHTML = "<p>No hay datos</p>";
-          return;
+    function createLineChart(canvasId, label, color) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: label,
+            data: [],
+            borderColor: color,
+            fill: false,
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              ticks: {
+                color: "#FFFFFF",
+                callback: function(value, index, ticks) {
+                  let label = this.getLabelForValue(value);
+                  // Substring(11,16) => extrae HH:MM
+                  return label.substring(11,16);
+                },
+                maxTicksLimit: 6
+              },
+              title: {
+                display: true,
+                text: 'Hora',
+                color: "#FFFFFF"
+              }
+            },
+            y: {
+              ticks: { color: "#FFFFFF" },
+              title: {
+                display: true,
+                text: label,
+                color: "#FFFFFF"
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: "#FFFFFF" }
+            }
+          }
         }
+      });
+    }
 
-        let { status, flow_set, time_left } = data;
+    // Crear 3 gráficos
+    tempChart = createLineChart('tempChart', 'Temperatura', '#FF5A5F');
+    humChart  = createLineChart('humChart',  'Humedad',     '#5FC3E4');
+    presChart = createLineChart('presChart', 'Presión',     '#FFC45F');
 
-        // status classes
-        let statusClass = status;
+    async function updateEstacionData() {
+      try {
+        // Llamamos al endpoint device_estacion_data
+        const resp = await fetch('{{ url_for("device_estacion_data", device_name=device.device_name) }}');
+        const data = await resp.json();
+        // data => { timestamps, temps, hums, press }
 
-        panel.innerHTML = `
-          <div class="status-item">
-            <span class="status-label">Estado:</span>
-            <span class="status-value ${statusClass}">${status}</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Flujo seteado:</span>
-            <span class="status-value">${flow_set} ml/min</span>
-          </div>
-          <div class="status-item">
-            <span class="status-label">Tiempo restante:</span>
-            <span class="status-value">${time_left} s</span>
-          </div>
-        `;
+        const { timestamps, temps, hums, press } = data;
+
+        tempChart.data.labels = timestamps;
+        tempChart.data.datasets[0].data = temps;
+        tempChart.update();
+
+        humChart.data.labels = timestamps;
+        humChart.data.datasets[0].data = hums;
+        humChart.update();
+
+        presChart.data.labels = timestamps;
+        presChart.data.datasets[0].data = press;
+        presChart.update();
+
       } catch (err) {
-        console.error("Error actualizando Microdós:", err);
+        console.error("Error al actualizar datos de estación:", err);
       }
     }
 
-    setInterval(updateMicrodosStatus, 5000);
-    updateMicrodosStatus();
+    // Actualizar cada 5s
+    setInterval(updateEstacionData, 5000);
+    // Llamada inicial
+    updateEstacionData();
     </script>
 </body>
 </html>

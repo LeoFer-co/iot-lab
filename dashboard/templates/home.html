@@ -19,7 +19,7 @@
             --card-border: #424F5B;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
-            --offline: #FF5A5F;
+            --offline-card-bg: #4B1E1E; /* un rojo oscuro para dispositivos desconectados */
         }
 
         * {
@@ -88,14 +88,18 @@
             box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
         }
 
-            .device-card h3 {
-                margin-bottom: 10px;
-                color: var(--accent);
-            }
+        .offline-card {
+            background-color: var(--offline-card-bg);
+        }
 
-            .device-card p {
-                margin: 5px 0;
-            }
+        .device-card h3 {
+            margin-bottom: 10px;
+            color: var(--accent);
+        }
+
+        .device-card p {
+            margin: 5px 0;
+        }
 
         a {
             color: #5FC3E4;
@@ -106,10 +110,6 @@
                 pointer-events: none;
                 opacity: 0.4;
             }
-
-        .offline {
-            color: var(--offline);
-        }
 
         footer {
             text-align: center;
@@ -128,19 +128,22 @@
         <h1>Dispositivos en la red</h1>
         <div class="device-grid">
             {% for dev in devices_data %}
-            <div class="device-card">
-                <h3>{{ dev.device_name|capitalize }}</h3>
-                <p>Tipo: {{ dev.device_type }}</p>
-                {% if dev.status_final == "Desconectado" %}
-                <p class="offline">Estado: {{ dev.status_final }}</p>
-                <a class="disabled">Ver Detalles</a>
+            {% if dev.status_final == "Desconectado" %}
+            <div class="device-card offline-card">
                 {% else %}
-                <p>Estado: {{ dev.status_final }}</p>
-                <a href="{{ url_for('device_detail', device_name=dev.device_name) }}">Ver Detalles</a>
-                {% endif %}
+                <div class="device-card">
+                    {% endif %}
+                    <h3>{{ dev.device_name|capitalize }}</h3>
+                    <p>Tipo: {{ dev.device_type }}</p>
+                    <p>Estado: {{ dev.status_final }}</p>
+                    {% if dev.status_final == "Desconectado" %}
+                    <a class="disabled">Ver Detalles</a>
+                    {% else %}
+                    <a href="{{ url_for('device_detail', device_name=dev.device_name) }}">Ver Detalles</a>
+                    {% endif %}
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
     </main>
 
     <footer>

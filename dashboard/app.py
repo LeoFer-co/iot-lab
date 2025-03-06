@@ -4,20 +4,18 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Umbral de desconexión en segundos
-OFFLINE_THRESHOLD = 10
+OFFLINE_THRESHOLD = 10  # seg para marcar desconexión
 
 def get_db():
-    """Abre la base de datos SQLite desde la ruta compartida."""
-    conn = sqlite3.connect("data/data.db")
+    conn = sqlite3.connect("data/data.db")  # Ajusta la ruta si es diferente
     conn.row_factory = sqlite3.Row
     return conn
 
 @app.route("/")
 def home():
     """
-    Página principal que lista todos los dispositivos de la tabla 'devices'.
-    Si last_seen supera OFFLINE_THRESHOLD, se muestra como 'Desconectado' y se deshabilita el acceso a detalles.
+    Lista todos los dispositivos de la tabla 'devices'.
+    Si su last_seen supera OFFLINE_THRESHOLD, se marcan como 'Desconectado'.
     """
     conn = get_db()
     cursor = conn.cursor()
@@ -29,8 +27,8 @@ def home():
     devices_data = []
     for dev in rows:
         dev_dict = dict(dev)
-        last_seen_str = dev_dict["last_seen"]  # p.ej. "YYYY-MM-DD HH:MM:SS"
         try:
+            last_seen_str = dev_dict["last_seen"]  # p.ej. "YYYY-MM-DD HH:MM:SS"
             last_dt = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
             diff = (now - last_dt).total_seconds()
             if diff > OFFLINE_THRESHOLD:
@@ -46,9 +44,10 @@ def home():
 @app.route("/device/<device_name>")
 def device_detail(device_name):
     """
-    Página de detalle de un dispositivo. Si está offline, se retorna un mensaje de desconexión.
-    Si es 'estacion', se mostrará device_estacion.html con sus arrays.
-    Si es 'microdos', se mostrará device_microdos.html.
+    Página de detalle de un dispositivo. 
+    Si está offline, se muestra error 403. 
+    Si device_type='estacion', renderiza device_estacion.html, 
+    si device_type='microdos', renderiza device_microdos.html.
     """
     conn = get_db()
     cursor = conn.cursor()
@@ -58,7 +57,7 @@ def device_detail(device_name):
         conn.close()
         return "Dispositivo no encontrado", 404
 
-    # Comprobar desconexión
+    # Detectar si está desconectado
     try:
         last_dt = datetime.strptime(device["last_seen"], "%Y-%m-%d %H:%M:%S")
         diff = (datetime.now() - last_dt).total_seconds()
@@ -78,17 +77,13 @@ def device_detail(device_name):
         conn.close()
 
         # Invertir y separar arrays
-        timestamps = []
-        temps = []
-        hums = []
-        press = []
+        timestamps, temps, hums, press = [], [], [], []
         for r in reversed(rows):
             timestamps.append(r["timestamp"])
             temps.append(r["temp"])
             hums.append(r["hum"])
             press.append(r["pres"])
 
-        # Renderizamos la plantilla que contiene las 3 gráficas separadas
         return render_template("device_estacion.html",
                                device=device,
                                timestamps=timestamps,
@@ -108,16 +103,14 @@ def device_detail(device_name):
         return f"Tipo de dispositivo desconocido: {device_type}", 400
 
 # --- ENDPOINTS PARA DATOS EN TIEMPO REAL ---
-
 @app.route("/device/<device_name>/estacion_data")
 def device_estacion_data(device_name):
     """
     Devuelve JSON con las últimas 30 mediciones (timestamps, temps, hums, press) para la Estación,
-    usado por device_estacion.html para actualizar en tiempo real sin recargar la página.
+    usado por device_estacion.html para actualizar en tiempo real.
     """
     conn = get_db()
     cursor = conn.cursor()
-    # Verificamos si está en devices con device_type = estacion (opcional)
     cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='estacion'", (device_name,))
     dev = cursor.fetchone()
     if not dev:
@@ -128,7 +121,6 @@ def device_estacion_data(device_name):
     rows = cursor.fetchall()
     conn.close()
 
-    # Invertir y separar arrays
     timestamps = []
     temps = []
     hums = []
@@ -172,8 +164,6 @@ def device_microdos_data(device_name):
         })
     else:
         return jsonify({"error": "Sin datos aún"}), 200
-
-# ------------------
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
