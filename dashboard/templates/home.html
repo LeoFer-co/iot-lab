@@ -1,34 +1,95 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Dispositivos Activos</title>
+    <meta charset="UTF-8" />
+    <title>LC Projects - Dispositivos</title>
+
+    <!-- Fuente Montserrat -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
+        :root {
+            --body-bg: #1C242C;
+            --header-bg: #3A4C5E;
+            --accent: #D07B2C;
+            --card-bg: #2A333B;
+            --card-border: #424F5B;
+            --text-color: #F0F0F0;
+            --text-secondary: #B0B0B0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Montserrat', sans-serif;
-            background-color: #1C242C;
-            color: #F0F0F0;
+            background-color: var(--body-bg);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: var(--header-bg);
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            height: 50px;
+            margin-right: 15px;
+        }
+
+        .header-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        main {
+            max-width: 1400px;
+            width: 100%;
+            margin: 20px auto;
+            padding: 0 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 20px;
         }
 
         .device-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             grid-gap: 20px;
-            padding: 20px;
         }
 
         .device-card {
-            background: #2A333B;
-            border: 1px solid #424F5B;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
             border-radius: 8px;
             padding: 15px;
             text-align: center;
+            box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
         }
 
             .device-card h3 {
                 margin-bottom: 10px;
-                color: #D07B2C;
+                color: var(--accent);
             }
 
             .device-card p {
@@ -36,22 +97,39 @@
             }
 
         a {
-            text-decoration: none;
             color: #5FC3E4;
+            text-decoration: none;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px 0;
+            color: var(--text-secondary);
         }
     </style>
 </head>
 <body>
-    <h1 style="text-align:center;">Dispositivos en la red</h1>
-    <div class="device-grid">
-        {% for dev in devices %}
-        <div class="device-card">
-            <h3>{{ dev.device_name|capitalize }}</h3>
-            <p>Tipo: {{ dev.device_type }}</p>
-            <p>Estado: {{ dev.last_status }}</p>
-            <a href="{{ url_for('device_detail', device_name=dev.device_name) }}">Ver Detalles</a>
+    <header>
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" class="logo" />
+        <h2 class="header-title">LC Projects - Dispositivos</h2>
+    </header>
+
+    <main>
+        <h1>Dispositivos en la red</h1>
+        <div class="device-grid">
+            {% for dev in devices %}
+            <div class="device-card">
+                <h3>{{ dev.device_name|capitalize }}</h3>
+                <p>Tipo: {{ dev.device_type }}</p>
+                <p>Estado: {{ dev.last_status }}</p>
+                <a href="{{ url_for('device_detail', device_name=dev.device_name) }}">Ver Detalles</a>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+    </main>
+
+    <footer>
+        &copy; 2023 LC Projects
+    </footer>
 </body>
 </html>

@@ -1,37 +1,101 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <title>{{ device.device_name|capitalize }} - Microdós</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <style>
+        :root {
+            --body-bg: #1C242C;
+            --header-bg: #3A4C5E;
+            --accent: #D07B2C;
+            --card-bg: #2A333B;
+            --card-border: #424F5B;
+            --text-color: #F0F0F0;
+            --text-secondary: #B0B0B0;
+            --running: #5FC3E4;
+            --idle: #B0B0B0;
+            --finished: #FF5A5F;
+        }
+
         body {
             font-family: 'Montserrat', sans-serif;
-            background-color: #1C242C;
-            color: #F0F0F0;
+            background-color: var(--body-bg);
+            color: var(--text-color);
+            margin: 0;
             padding: 20px;
         }
 
         h1 {
-            color: #D07B2C;
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 20px;
         }
 
-        .status-panel {
-            background-color: #2A333B;
-            border: 1px solid #424F5B;
+        .status-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
             border-radius: 8px;
             padding: 20px;
-            max-width: 400px;
-            margin: 20px auto;
             text-align: center;
+            box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
         }
 
-            .status-panel p {
-                margin: 10px 0;
-                font-size: 1.2rem;
+            .status-container h2 {
+                color: var(--accent);
+                margin-bottom: 15px;
             }
+
+        .status-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .status-item {
+            background-color: #343F48;
+            border-radius: 6px;
+            padding: 10px 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-color);
+            font-size: 1.1rem;
+        }
+
+        .status-label {
+            font-weight: 600;
+        }
+
+        .status-value {
+            font-weight: 400;
+        }
+
+            .status-value.running {
+                color: var(--running);
+            }
+
+            .status-value.idle {
+                color: var(--idle);
+            }
+
+            .status-value.finished {
+                color: var(--finished);
+            }
+
+        .center {
+            text-align: center;
+            margin-top: 20px;
+        }
 
         a {
             color: #5FC3E4;
@@ -41,15 +105,31 @@
 </head>
 <body>
     <h1>{{ device.device_name|capitalize }} (Microdós)</h1>
-    {% if row %}
-    <div class="status-panel">
-        <p><strong>Estado:</strong> {{ row.status }}</p>
-        <p><strong>Flujo seteado:</strong> {{ row.flow_set }} ml/min</p>
-        <p><strong>Tiempo restante:</strong> {{ row.time_left }} s</p>
+
+    <div class="status-container">
+        <h2>Estado del Equipo</h2>
+        {% if row %}
+        <div class="status-panel">
+            <div class="status-item">
+                <span class="status-label">Estado:</span>
+                <span class="status-value {{ row.status }}">{{ row.status }}</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Flujo seteado:</span>
+                <span class="status-value">{{ row.flow_set }} ml/min</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Tiempo restante:</span>
+                <span class="status-value">{{ row.time_left }} s</span>
+            </div>
+        </div>
+        {% else %}
+        <p>No hay datos registrados aún.</p>
+        {% endif %}
     </div>
-    {% else %}
-    <p>No hay datos registrados aún.</p>
-    {% endif %}
-    <p style="text-align:center;"><a href="{{ url_for('home') }}">Volver</a></p>
+
+    <div class="center">
+        <a href="{{ url_for('home') }}">Volver</a>
+    </div>
 </body>
 </html>
