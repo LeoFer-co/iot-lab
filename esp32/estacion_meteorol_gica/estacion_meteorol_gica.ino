@@ -44,7 +44,7 @@ void loop() {
   if (millis() - lastPublish > 5000) {
     lastPublish = millis();
     
-    float angle = (millis() / 1000.0) * (PI / 5);
+    float angle = (millis() / 1000.0) * (PI / 50);
     float temp = 25.0 + 5.0 * sin(angle);
     float hum  = 50.0 + 10.0 * sin(angle + 1);
     float pres = 1013.0 + 3.0 * sin(angle + 2);

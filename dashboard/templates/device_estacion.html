@@ -2,12 +2,14 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>{{ device.device_name|capitalize }} - Estación</title>
+    <title>{{ device.device_name|capitalize }} (Estación Meteorológica)</title>
 
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Plugin de zoom para Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -47,9 +49,9 @@
             border: 1px solid var(--card-border);
             border-radius: 8px;
             padding: 15px;
-            height: 350px;
             display: flex;
             flex-direction: column;
+            min-height: 350px; /* para mantener consistencia */
         }
 
         .chart-title {
@@ -61,6 +63,7 @@
         .chart-container {
             flex: 1;
             position: relative;
+            overflow: hidden; /* Evita que el zoom "rompa" la tarjeta */
         }
 
         canvas {
@@ -88,7 +91,6 @@
 <body>
     <h1>{{ device.device_name|capitalize }} (Estación Meteorológica)</h1>
 
-    <!-- Tres tarjetas, una por cada gráfica -->
     <div class="grid-charts">
         <div class="chart-card">
             <div class="chart-title">Temperatura (°C)</div>
@@ -121,6 +123,24 @@
     <script>
     let tempChart, humChart, presChart;
 
+    // Config base para zoom
+    const zoomOptions = {
+      pan: {
+        enabled: true,
+        mode: 'x', // se puede panear en X
+      },
+      zoom: {
+        enabled: true,
+        mode: 'x', // zoom en X
+        wheel: {
+          enabled: true
+        },
+        pinch: {
+          enabled: true
+        }
+      }
+    };
+
     function createLineChart(canvasId, label, color) {
       const ctx = document.getElementById(canvasId).getContext('2d');
       return new Chart(ctx, {
@@ -144,8 +164,7 @@
                 color: "#FFFFFF",
                 callback: function(value, index, ticks) {
                   let label = this.getLabelForValue(value);
-                  // Substring(11,16) => extrae HH:MM
-                  return label.substring(11,16);
+                  return label.substring(11,16); // HH:MM
                 },
                 maxTicksLimit: 6
               },
@@ -167,7 +186,8 @@
           plugins: {
             legend: {
               labels: { color: "#FFFFFF" }
-            }
+            },
+            zoom: zoomOptions
           }
         }
       });
@@ -180,21 +200,21 @@
 
     async function updateEstacionData() {
       try {
-        // Llamamos al endpoint device_estacion_data
         const resp = await fetch('{{ url_for("device_estacion_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // data => { timestamps, temps, hums, press }
-
         const { timestamps, temps, hums, press } = data;
 
+        // Temperatura
         tempChart.data.labels = timestamps;
         tempChart.data.datasets[0].data = temps;
         tempChart.update();
 
+        // Humedad
         humChart.data.labels = timestamps;
         humChart.data.datasets[0].data = hums;
         humChart.update();
 
+        // Presión
         presChart.data.labels = timestamps;
         presChart.data.datasets[0].data = press;
         presChart.update();

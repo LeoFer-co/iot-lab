@@ -9,6 +9,9 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- ProgressBar.js para las barras de progreso (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
+
     <style>
         :root {
             --body-bg: #1C242C;
@@ -37,8 +40,8 @@
             margin-bottom: 20px;
         }
 
-        .status-container {
-            max-width: 600px;
+        .dashboard-container {
+            max-width: 800px;
             margin: 0 auto;
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -48,29 +51,33 @@
             box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
         }
 
-            .status-container h2 {
+            .dashboard-container h2 {
                 color: var(--accent);
                 margin-bottom: 15px;
             }
 
-        .status-panel {
+        .flex-row {
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
-            margin-top: 10px;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
         }
 
-        .status-item {
+        .panel {
             background-color: #343F48;
             border-radius: 6px;
             padding: 10px 20px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-color);
-            font-size: 1.1rem;
+            min-width: 200px;
+            flex: 1 1 auto;
+            text-align: center;
         }
+
+            .panel h3 {
+                margin-bottom: 10px;
+                font-size: 1.1rem;
+                color: var(--accent);
+            }
 
         .status-label {
             font-weight: 600;
@@ -78,6 +85,9 @@
 
         .status-value {
             font-weight: 400;
+            display: block;
+            margin-top: 5px;
+            font-size: 1.2rem;
         }
 
             .status-value.running {
@@ -92,44 +102,145 @@
                 color: var(--finished);
             }
 
-        .center {
+        .countdown {
+            font-size: 1.2rem;
+            margin-top: 10px;
+        }
+
+        /* Radial container for flow gauge */
+        .flow-gauge {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .flow-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1rem;
+            color: var(--text-color);
             text-align: center;
-            margin-top: 20px;
         }
 
         a {
             color: #5FC3E4;
             text-decoration: none;
         }
+
+        .center {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>{{ device.device_name|capitalize }} (Microdós)</h1>
 
-    <div class="status-container">
+    <div class="dashboard-container">
         <h2>Estado del Equipo</h2>
-        {% if row %}
-        <div class="status-panel">
-            <div class="status-item">
-                <span class="status-label">Estado:</span>
-                <span class="status-value {{ row.status }}">{{ row.status }}</span>
+        <div id="statusPanel" class="flex-row">
+            <!-- Panel 1: Estado -->
+            <div class="panel">
+                <h3>Estado Actual</h3>
+                <span id="statusValue" class="status-value idle">Idle</span>
             </div>
-            <div class="status-item">
-                <span class="status-label">Flujo seteado:</span>
-                <span class="status-value">{{ row.flow_set }} ml/min</span>
+
+            <!-- Panel 2: Flujo seteado (gauge radial) -->
+            <div class="panel">
+                <h3>Flujo Seteado</h3>
+                <div class="flow-gauge" id="flowGaugeContainer">
+                    <div id="flowText" class="flow-text">0 ml/min</div>
+                </div>
             </div>
-            <div class="status-item">
-                <span class="status-label">Tiempo restante:</span>
-                <span class="status-value">{{ row.time_left }} s</span>
+
+            <!-- Panel 3: Tiempo restante (countdown) -->
+            <div class="panel">
+                <h3>Tiempo Restante</h3>
+                <div id="timeLeft" class="countdown">-- s</div>
             </div>
         </div>
-        {% else %}
-        <p>No hay datos registrados aún.</p>
-        {% endif %}
     </div>
 
     <div class="center">
         <a href="{{ url_for('home') }}">Volver</a>
     </div>
+
+    <footer>
+        2025 - LC Projects
+    </footer>
+
+    <script>
+    // Creamos un radial gauge para el flujo usando ProgressBar.js
+    let flowGauge = new ProgressBar.Circle('#flowGaugeContainer', {
+      color: '#5FC3E4',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500, // animación
+      text: { value: '' },
+      from: { color: '#5FC3E4' },
+      to: { color: '#5FC3E4' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+      }
+    });
+
+    async function updateMicrodosStatus() {
+      try {
+        const resp = await fetch('{{ url_for("device_microdos_data", device_name=device.device_name) }}');
+        const data = await resp.json();
+
+        if (data.error) {
+          // Muestra error o algo si no hay datos
+          document.getElementById('statusValue').textContent = "Sin datos";
+          document.getElementById('timeLeft').textContent = "-- s";
+          flowGauge.set(0);
+          document.getElementById('flowText').textContent = "0 ml/min";
+          return;
+        }
+
+        // data => { status, flow_set, time_left }
+        let status = data.status || "idle";
+        let flowSet = data.flow_set || 0;
+        let timeLeft = data.time_left || 0;
+
+        // Actualizar estado
+        let statusValue = document.getElementById('statusValue');
+        statusValue.textContent = status;
+        // Remover clases viejas
+        statusValue.classList.remove('running', 'idle', 'finished');
+        statusValue.classList.add(status);
+
+        // Actualizar flujo
+        // Asumamos un rango de 0 a 50 ml/min => ajusta segun tu necesidad
+        let maxFlow = 50;
+        let ratio = flowSet / maxFlow;
+        if (ratio > 1) ratio = 1;
+        flowGauge.animate(ratio, { duration: 500 });
+        document.getElementById('flowText').textContent = flowSet.toFixed(1) + " ml/min";
+
+        // Actualizar tiempo
+        document.getElementById('timeLeft').textContent = timeLeft + " s";
+
+      } catch (err) {
+        console.error("Error actualizando Microdós:", err);
+      }
+    }
+
+    // Llamamos cada 5s
+    setInterval(updateMicrodosStatus, 5000);
+    // Llamada inicial
+    updateMicrodosStatus();
+    </script>
 </body>
 </html>
