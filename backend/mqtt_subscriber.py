@@ -6,7 +6,7 @@ import sqlite3
 # -------------------------
 
 # Conecta (o crea) la base de datos "data.db" en el mismo directorio
-conn = sqlite3.connect('data.db', check_same_thread=False)
+conn = sqlite3.connect('data/data.db', check_same_thread=False)
 cursor = conn.cursor()
 
 # Crea la tabla measurements si no existe
