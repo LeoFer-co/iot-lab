@@ -6,6 +6,7 @@ def on_connect(client, userdata, flags, rc):
     # Nos suscribimos al tópico que publica el ESP32
     client.subscribe("lab/equipo1/temperatura")
     
+    
 # Función callback que se ejecuta cuando se recibe un mensaje
 def on_message(client, userdata, msg):
     print(f"Mensaje recibido en {msg.topic}: {msg.payload.decode()}")
