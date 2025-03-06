@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>LC Projects - Dashboard IoT</title>
 
-    <!-- Fuente Montserrat desde Google Fonts -->
+    <!-- Fuente Montserrat -->
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
 
@@ -12,18 +12,14 @@
 
     <style>
             /*
-          Paleta de colores inspirada en el logo:
-          - Fondo principal (body): #1C242C (azul oscuro/negro)
-          - Cabecera: #2E3E4E (un tono algo más claro)
-          - Acento (texto destacado): #D07B2C (naranja del logo)
-          - Cartas (tarjetas) con un gris oscuro #2A333B
-          - Texto principal claro #F0F0F0
+          Ajustamos la paleta para que el header sea más claro que #2E3E4E
+          y así el azul del logo resalte. Por ejemplo: #3A4C5E
         */
             :root {
-                --body-bg: #1C242C;
-                --header-bg: #2E3E4E;
-                --accent: #D07B2C;
-                --card-bg: #2A333B;
+                --body-bg: #1C242C; /* Fondo principal */
+                --header-bg: #3A4C5E; /* Más claro que antes */
+                --accent: #D07B2C; /* Naranja del logo */
+                --card-bg: #2A333B; /* Tarjetas */
                 --card-border: #424F5B;
                 --text-color: #F0F0F0;
                 --text-secondary: #B0B0B0;
@@ -44,7 +40,6 @@
                 min-height: 100vh;
             }
 
-            /* Cabecera con logo y título */
             header {
                 background-color: var(--header-bg);
                 display: flex;
@@ -81,26 +76,22 @@
                 margin-bottom: 20px;
             }
 
-            /* Grid responsive:
-           - 3 columnas en pantallas anchas,
-           - 2 columnas en medianas,
-           - 1 columna en móviles */
             .grid-container {
                 display: grid;
                 grid-gap: 20px;
-                /* 3 columnas a partir de 1024px */
+                /* 3 columnas en pantallas anchas */
                 grid-template-columns: repeat(3, 1fr);
             }
 
             @media (max-width: 1023px) {
-                /* 2 columnas en pantallas medianas */
+                /* 2 columnas en medianas */
                 .grid-container {
                     grid-template-columns: repeat(2, 1fr);
                 }
             }
 
             @media (max-width: 599px) {
-                /* 1 columna en pantallas pequeñas */
+                /* 1 columna en móviles */
                 .grid-container {
                     grid-template-columns: 1fr;
                 }
@@ -114,7 +105,7 @@
                 box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
                 display: flex;
                 flex-direction: column;
-                height: 400px; /* Ajusta la altura según prefieras */
+                height: 380px; /* Ajusta la altura si lo deseas */
             }
 
             .chart-title {
@@ -143,7 +134,6 @@
 </head>
 <body>
     <header>
-        <!-- Logo -->
         <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" class="logo" />
         <h2 class="header-title">LC Projects - Dashboard IoT</h2>
     </header>
@@ -202,10 +192,8 @@
     </footer>
 
     <script>
-    // Variables globales para las instancias de Chart
     let tempChart, humChart, presChart, lightChart, soundChart, voltChart;
 
-    // Función para crear un gráfico de línea
     function createLineChart(canvasId, label, labelsArray, dataArray, color) {
       const ctx = document.getElementById(canvasId).getContext('2d');
       return new Chart(ctx, {
@@ -216,7 +204,7 @@
             label: label,
             data: dataArray,
             borderColor: color,
-            backgroundColor: 'rgba(0,0,0,0)', // transparente
+            backgroundColor: 'rgba(0,0,0,0)',
             fill: false,
             tension: 0.1
           }]
@@ -226,28 +214,36 @@
           maintainAspectRatio: false,
           scales: {
             x: {
+              ticks: {
+                color: "#FFFFFF",
+                // Solo mostrar la hora y minuto (HH:MM)
+                callback: function(value, index, ticks) {
+                  // 'this.getLabelForValue(value)' es la etiqueta en labelsArray
+                  let label = this.getLabelForValue(value);
+                  // Asumiendo que label sea "YYYY-MM-DD HH:MM:SS", tomamos substring(11,16) => "HH:MM"
+                  return label.substring(11, 16);
+                },
+                maxTicksLimit: 6 // muestra ~6 ticks en X
+              },
               title: {
                 display: true,
-                text: 'Timestamp'
-              },
-              ticks: {
-                color: "#FFFFFF" // color del texto en eje X
+                text: 'Hora'
               }
             },
             y: {
+              ticks: {
+                color: "#FFFFFF"
+              },
               title: {
                 display: true,
                 text: label
-              },
-              ticks: {
-                color: "#FFFFFF" // color del texto en eje Y
               }
             }
           },
           plugins: {
             legend: {
               labels: {
-                color: "#FFFFFF" // color de la leyenda
+                color: "#FFFFFF"
               }
             }
           }
@@ -255,7 +251,6 @@
       });
     }
 
-    // Función para actualizar los gráficos en tiempo real
     async function updateCharts() {
       try {
         const response = await fetch('/data');
@@ -263,12 +258,10 @@
 
         const { timestamps, temp_vals, hum_vals, pres_vals, light_vals, sound_vals, volt_vals } = result;
 
-        // Actualizar ejes x
         [tempChart, humChart, presChart, lightChart, soundChart, voltChart].forEach(chart => {
           chart.data.labels = timestamps;
         });
 
-        // Actualizar ejes y
         tempChart.data.datasets[0].data  = temp_vals;
         humChart.data.datasets[0].data   = hum_vals;
         presChart.data.datasets[0].data  = pres_vals;
@@ -276,7 +269,6 @@
         soundChart.data.datasets[0].data = sound_vals;
         voltChart.data.datasets[0].data  = volt_vals;
 
-        // Redibujar
         tempChart.update();
         humChart.update();
         presChart.update();
@@ -289,7 +281,7 @@
       }
     }
 
-    // Datos iniciales pasados desde Flask
+    // Datos iniciales desde Flask
     const timestamps = {{ timestamps|safe }};
     const tempVals   = {{ temp_vals|safe }};
     const humVals    = {{ hum_vals|safe }};
@@ -298,8 +290,7 @@
     const soundVals  = {{ sound_vals|safe }};
     const voltVals   = {{ volt_vals|safe }};
 
-    // Crear las 6 gráficas
-    // Colores que combinen con el naranja y azul del logo
+    // Colores en consonancia con el logo
     tempChart  = createLineChart('tempChart',  'Temperatura (°C)', timestamps, tempVals,  '#FF5A5F');
     humChart   = createLineChart('humChart',   'Humedad (%)',     timestamps, humVals,   '#5FC3E4');
     presChart  = createLineChart('presChart',  'Presión (hPa)',   timestamps, presVals,  '#FFC45F');
