@@ -4,7 +4,7 @@ import sqlite3
 app = Flask(__name__)
 
 def get_measurements():
-    conn = sqlite3.connect('../data/data.db')
+    conn = sqlite3.connect('data/data.db')
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     # Selecciona los últimos 20 registros
