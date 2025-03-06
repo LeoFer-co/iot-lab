@@ -9,12 +9,12 @@ def get_measurements():
     # Conectar a la base de datos usando la ruta montada (la base se encuentra en ../data/data.db)
     conn = sqlite3.connect('../data/data.db')
     cursor = conn.cursor()
-    # Seleccionamos las últimas 50 mediciones ordenadas por timestamp (ajusta según necesites)
+    # Seleccionamos las Ãºltimas 50 mediciones ordenadas por timestamp (ajusta segÃºn necesites)
     cursor.execute("SELECT timestamp, message FROM measurements ORDER BY timestamp DESC LIMIT 50")
     rows = cursor.fetchall()
     conn.close()
     # Preparamos los datos en dos listas: tiempos y valores
-    timestamps = [row[0] for row in rows][::-1]  # Invertimos para que estén en orden cronológico ascendente
+    timestamps = [row[0] for row in rows][::-1]  # Invertimos para que estÃ©n en orden cronolÃ³gico ascendente
     values = [float(row[1]) for row in rows][::-1]
     return timestamps, values
 
