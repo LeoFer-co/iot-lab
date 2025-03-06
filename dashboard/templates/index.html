@@ -2,51 +2,64 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>Dashboard IoT - 6 Gráficas</title>
+    <title>Dashboard IoT - 6 Gráficas en Tiempo Real</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 20px;
+        }
+
         .chart-container {
-            width: 600px;
-            margin-bottom: 30px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            width: 100%;
+            height: 300px;
         }
     </style>
 </head>
 <body>
-    <h1>Dashboard de 6 Gráficas</h1>
-
-    <div class="chart-container">
-        <canvas id="tempChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="humChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="presChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="lightChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="soundChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="voltChart"></canvas>
+    <h1>Dashboard IoT en Tiempo Real</h1>
+    <div class="grid-container">
+        <div class="chart-container">
+            <canvas id="tempChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="humChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="presChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="lightChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="soundChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <canvas id="voltChart"></canvas>
+        </div>
     </div>
 
     <script>
-    // Obtenemos los datos que Flask nos pasó en formato JSON
-    const timestamps = {{ timestamps|safe }};
-    const tempVals   = {{ temp_vals|safe }};
-    const humVals    = {{ hum_vals|safe }};
-    const presVals   = {{ pres_vals|safe }};
-    const lightVals  = {{ light_vals|safe }};
-    const soundVals  = {{ sound_vals|safe }};
-    const voltVals   = {{ volt_vals|safe }};
+    // Variables globales para almacenar las instancias de Chart
+    let tempChart, humChart, presChart, lightChart, soundChart, voltChart;
 
-    // Función auxiliar para crear un gráfico de línea
+    // Función para crear un gráfico de línea
     function createLineChart(canvasId, label, labelsArray, dataArray, color) {
       const ctx = document.getElementById(canvasId).getContext('2d');
-      new Chart(ctx, {
+      return new Chart(ctx, {
         type: 'line',
         data: {
           labels: labelsArray,
@@ -59,16 +72,16 @@
           }]
         },
         options: {
+          responsive: true,
+          maintainAspectRatio: false,
           scales: {
             x: {
-              display: true,
               title: {
                 display: true,
                 text: 'Timestamp'
               }
             },
             y: {
-              display: true,
               title: {
                 display: true,
                 text: label
@@ -79,13 +92,58 @@
       });
     }
 
-    // Crear las 6 gráficas
-    createLineChart('tempChart',  'Temperatura (°C)', timestamps, tempVals,  'rgba(255, 99, 132, 1)');
-    createLineChart('humChart',   'Humedad (%)',     timestamps, humVals,   'rgba(54, 162, 235, 1)');
-    createLineChart('presChart',  'Presión (hPa)',   timestamps, presVals,  'rgba(255, 206, 86, 1)');
-    createLineChart('lightChart', 'Luz (lx)',        timestamps, lightVals, 'rgba(75, 192, 192, 1)');
-    createLineChart('soundChart', 'Sonido (dB)',     timestamps, soundVals, 'rgba(153, 102, 255, 1)');
-    createLineChart('voltChart',  'Voltaje (V)',     timestamps, voltVals,  'rgba(255, 159, 64, 1)');
+    // Función para actualizar los gráficos con nuevos datos
+    async function updateCharts() {
+      try {
+        // Consultar el endpoint que devuelve los datos (ver sección Backend a continuación)
+        const response = await fetch('/data');
+        const result = await response.json();
+        const { timestamps, temp_vals, hum_vals, pres_vals, light_vals, sound_vals, volt_vals } = result;
+
+        // Actualizar datos de cada gráfico y refrescarlo
+        [tempChart, humChart, presChart, lightChart, soundChart, voltChart].forEach(chart => {
+          chart.data.labels = timestamps;
+        });
+        tempChart.data.datasets[0].data = temp_vals;
+        humChart.data.datasets[0].data = hum_vals;
+        presChart.data.datasets[0].data = pres_vals;
+        lightChart.data.datasets[0].data = light_vals;
+        soundChart.data.datasets[0].data = sound_vals;
+        voltChart.data.datasets[0].data = volt_vals;
+
+        // Refrescar los gráficos
+        tempChart.update();
+        humChart.update();
+        presChart.update();
+        lightChart.update();
+        soundChart.update();
+        voltChart.update();
+
+      } catch (error) {
+        console.error('Error al actualizar los gráficos:', error);
+      }
+    }
+
+    // Inicializar los gráficos con datos iniciales (pasados desde Flask)
+    // Estos datos se pasan desde Flask mediante la renderización de la plantilla
+    const timestamps = {{ timestamps|safe }};
+    const tempVals   = {{ temp_vals|safe }};
+    const humVals    = {{ hum_vals|safe }};
+    const presVals   = {{ pres_vals|safe }};
+    const lightVals  = {{ light_vals|safe }};
+    const soundVals  = {{ sound_vals|safe }};
+    const voltVals   = {{ volt_vals|safe }};
+
+    // Crear los 6 gráficos
+    tempChart   = createLineChart('tempChart',  'Temperatura (°C)', timestamps, tempVals,  'rgba(255, 99, 132, 1)');
+    humChart    = createLineChart('humChart',   'Humedad (%)',     timestamps, humVals,   'rgba(54, 162, 235, 1)');
+    presChart   = createLineChart('presChart',  'Presión (hPa)',   timestamps, presVals,  'rgba(255, 206, 86, 1)');
+    lightChart  = createLineChart('lightChart', 'Luz (lx)',        timestamps, lightVals, 'rgba(75, 192, 192, 1)');
+    soundChart  = createLineChart('soundChart', 'Sonido (dB)',     timestamps, soundVals, 'rgba(153, 102, 255, 1)');
+    voltChart   = createLineChart('voltChart',  'Voltaje (V)',     timestamps, voltVals,  'rgba(255, 159, 64, 1)');
+
+    // Configura una actualización en tiempo real: cada 5 segundos consulta el endpoint y actualiza los gráficos
+    setInterval(updateCharts, 5000);
     </script>
 </body>
 </html>
