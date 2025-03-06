@@ -19,6 +19,7 @@
             --card-border: #424F5B;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
+            --offline: #FF5A5F;
         }
 
         * {
@@ -101,6 +102,15 @@
             text-decoration: none;
         }
 
+            a.disabled {
+                pointer-events: none;
+                opacity: 0.4;
+            }
+
+        .offline {
+            color: var(--offline);
+        }
+
         footer {
             text-align: center;
             padding: 10px 0;
@@ -117,19 +127,24 @@
     <main>
         <h1>Dispositivos en la red</h1>
         <div class="device-grid">
-            {% for dev in devices %}
+            {% for dev in devices_data %}
             <div class="device-card">
                 <h3>{{ dev.device_name|capitalize }}</h3>
                 <p>Tipo: {{ dev.device_type }}</p>
-                <p>Estado: {{ dev.last_status }}</p>
+                {% if dev.status_final == "Desconectado" %}
+                <p class="offline">Estado: {{ dev.status_final }}</p>
+                <a class="disabled">Ver Detalles</a>
+                {% else %}
+                <p>Estado: {{ dev.status_final }}</p>
                 <a href="{{ url_for('device_detail', device_name=dev.device_name) }}">Ver Detalles</a>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
     </main>
 
     <footer>
-        &copy; 2023 LC Projects
+        2025 - LC Projects
     </footer>
 </body>
 </html>

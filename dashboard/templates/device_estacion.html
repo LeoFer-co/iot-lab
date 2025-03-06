@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <title>{{ device.device_name|capitalize }} - Estación</title>
+    <meta charset="UTF-8">
+    <title>{{ device.device_name|capitalize }} - Microdós</title>
 
-    <link rel="preconnect" href="https://fonts.gstatic.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
         :root {
             --body-bg: #1C242C;
-            --header-bg: #3A4C5E;
-            --accent: #D07B2C;
             --card-bg: #2A333B;
             --card-border: #424F5B;
+            --accent: #D07B2C;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
+            --running: #5FC3E4;
+            --idle: #B0B0B0;
+            --finished: #FF5A5F;
         }
 
         body {
@@ -36,19 +36,64 @@
             margin-bottom: 20px;
         }
 
-        .chart-container {
-            max-width: 1200px;
+        .status-container {
+            max-width: 600px;
             margin: 0 auto;
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: 8px;
             padding: 20px;
+            text-align: center;
             box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
         }
 
-        canvas {
-            width: 100% !important;
-            height: 400px !important;
+            .status-container h2 {
+                color: var(--accent);
+                margin-bottom: 15px;
+            }
+
+        .status-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .status-item {
+            background-color: #343F48;
+            border-radius: 6px;
+            padding: 10px 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-color);
+            font-size: 1.1rem;
+        }
+
+        .status-label {
+            font-weight: 600;
+        }
+
+        .status-value {
+            font-weight: 400;
+        }
+
+            .status-value.running {
+                color: var(--running);
+            }
+
+            .status-value.idle {
+                color: var(--idle);
+            }
+
+            .status-value.finished {
+                color: var(--finished);
+            }
+
+        .center {
+            text-align: center;
+            margin-top: 20px;
         }
 
         a {
@@ -56,95 +101,70 @@
             text-decoration: none;
         }
 
-        .center {
+        footer {
             text-align: center;
+            color: var(--text-secondary);
             margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>{{ device.device_name|capitalize }} (Estación Meteorológica)</h1>
+    <h1>{{ device.device_name|capitalize }} (Microdós)</h1>
 
-    <div class="chart-container">
-        <canvas id="estacionChart"></canvas>
+    <div class="status-container">
+        <h2>Estado del Equipo</h2>
+        <div class="status-panel" id="microdosPanel">
+            <!-- Se llenará dinámicamente -->
+        </div>
     </div>
 
     <div class="center">
         <a href="{{ url_for('home') }}">Volver</a>
     </div>
 
-    <script>
-    // Suponiendo que tu backend pasa arrays de timestamps, temps, hums, press
-    const timestamps = {{ timestamps|safe }};
-    const temps = {{ temps|safe }};
-    const hums  = {{ hums|safe }};
-    const press = {{ press|safe }};
+    <footer>
+        2025 - LC Projects
+    </footer>
 
-    const ctx = document.getElementById('estacionChart').getContext('2d');
-    const estacionChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: timestamps,
-        datasets: [
-          {
-            label: 'Temperatura (°C)',
-            data: temps,
-            borderColor: '#FF5A5F',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'Humedad (%)',
-            data: hums,
-            borderColor: '#5FC3E4',
-            fill: false,
-            tension: 0.1
-          },
-          {
-            label: 'Presión (hPa)',
-            data: press,
-            borderColor: '#FFC45F',
-            fill: false,
-            tension: 0.1
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          x: {
-            ticks: {
-              color: "#FFFFFF",
-              callback: function(value, index, ticks) {
-                let label = this.getLabelForValue(value);
-                // Ejemplo: label = "YYYY-MM-DD HH:MM:SS" => extraer HH:MM
-                return label.substring(11, 16);
-              },
-              maxTicksLimit: 6
-            },
-            title: {
-              display: true,
-              text: 'Hora',
-              color: "#FFFFFF"
-            }
-          },
-          y: {
-            ticks: { color: "#FFFFFF" },
-            title: {
-              display: true,
-              text: 'Valores',
-              color: "#FFFFFF"
-            }
-          }
-        },
-        plugins: {
-          legend: {
-            labels: { color: "#FFFFFF" }
-          }
+    <script>
+    async function updateMicrodosStatus() {
+      try {
+        const resp = await fetch('{{ url_for("device_microdos_data", device_name=device.device_name) }}');
+        const data = await resp.json();
+        // data => { status, flow_set, time_left }
+
+        const panel = document.getElementById('microdosPanel');
+        if (!data) {
+          panel.innerHTML = "<p>No hay datos</p>";
+          return;
         }
+
+        let { status, flow_set, time_left } = data;
+
+        // status classes
+        let statusClass = status;
+
+        panel.innerHTML = `
+          <div class="status-item">
+            <span class="status-label">Estado:</span>
+            <span class="status-value ${statusClass}">${status}</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Flujo seteado:</span>
+            <span class="status-value">${flow_set} ml/min</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Tiempo restante:</span>
+            <span class="status-value">${time_left} s</span>
+          </div>
+        `;
+      } catch (err) {
+        console.error("Error actualizando Microdós:", err);
       }
-    });
+    }
+
+    setInterval(updateMicrodosStatus, 5000);
+    updateMicrodosStatus();
     </script>
 </body>
 </html>
