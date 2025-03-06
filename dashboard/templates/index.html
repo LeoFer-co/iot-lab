@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>Dashboard IoT - 6 Gr·ficas</title>
+    <title>Dashboard IoT - 6 Gr√°ficas</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .chart-container {
@@ -12,7 +12,7 @@
     </style>
 </head>
 <body>
-    <h1>Dashboard de 6 Gr·ficas</h1>
+    <h1>Dashboard de 6 Gr√°ficas</h1>
 
     <div class="chart-container">
         <canvas id="tempChart"></canvas>
@@ -34,7 +34,7 @@
     </div>
 
     <script>
-    // Obtenemos los datos que Flask nos pasÛ en formato JSON
+    // Obtenemos los datos que Flask nos pas√≥ en formato JSON
     const timestamps = {{ timestamps|safe }};
     const tempVals   = {{ temp_vals|safe }};
     const humVals    = {{ hum_vals|safe }};
@@ -43,7 +43,7 @@
     const soundVals  = {{ sound_vals|safe }};
     const voltVals   = {{ volt_vals|safe }};
 
-    // FunciÛn auxiliar para crear un gr·fico de lÌnea
+    // Funci√≥n auxiliar para crear un gr√°fico de l√≠nea
     function createLineChart(canvasId, label, labelsArray, dataArray, color) {
       const ctx = document.getElementById(canvasId).getContext('2d');
       new Chart(ctx, {
@@ -79,10 +79,10 @@
       });
     }
 
-    // Crear las 6 gr·ficas
-    createLineChart('tempChart',  'Temperatura (∞C)', timestamps, tempVals,  'rgba(255, 99, 132, 1)');
+    // Crear las 6 gr√°ficas
+    createLineChart('tempChart',  'Temperatura (¬∞C)', timestamps, tempVals,  'rgba(255, 99, 132, 1)');
     createLineChart('humChart',   'Humedad (%)',     timestamps, humVals,   'rgba(54, 162, 235, 1)');
-    createLineChart('presChart',  'PresiÛn (hPa)',   timestamps, presVals,  'rgba(255, 206, 86, 1)');
+    createLineChart('presChart',  'Presi√≥n (hPa)',   timestamps, presVals,  'rgba(255, 206, 86, 1)');
     createLineChart('lightChart', 'Luz (lx)',        timestamps, lightVals, 'rgba(75, 192, 192, 1)');
     createLineChart('soundChart', 'Sonido (dB)',     timestamps, soundVals, 'rgba(153, 102, 255, 1)');
     createLineChart('voltChart',  'Voltaje (V)',     timestamps, voltVals,  'rgba(255, 159, 64, 1)');
