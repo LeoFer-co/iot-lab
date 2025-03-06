@@ -1,12 +1,12 @@
-import paho.mqtt.client as mqtt
+ï»¿import paho.mqtt.client as mqtt
 
-# Función callback que se ejecuta al conectarse al broker
+# FunciÃ³n callback que se ejecuta al conectarse al broker
 def on_connect(client, userdata, flags, rc):
     print("Conectado con resultado: " + str(rc))
-    # Nos suscribimos al tópico que publica el ESP32
+    # Nos suscribimos al tÃ³pico que publica el ESP32
     client.subscribe("lab/equipo1/temperatura")
 
-# Función callback que se ejecuta cuando se recibe un mensaje
+# FunciÃ³n callback que se ejecuta cuando se recibe un mensaje
 def on_message(client, userdata, msg):
     print(f"Mensaje recibido en {msg.topic}: {msg.payload.decode()}")
 
