@@ -1,4 +1,4 @@
-﻿import paho.mqtt.client as mqtt
+import paho.mqtt.client as mqtt
 
 # Función callback que se ejecuta al conectarse al broker
 def on_connect(client, userdata, flags, rc):
