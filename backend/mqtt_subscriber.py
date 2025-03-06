@@ -11,7 +11,7 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     print(f"Mensaje recibido en {msg.topic}: {msg.payload.decode()}")
 
-broker = "localhost"  # Asumiendo que Mosquitto corre en el mismo contenedor o en el mismo host
+broker = "broker"  # Asumiendo que Mosquitto corre en el mismo contenedor o en el mismo host
 port = 1883
 
 client = mqtt.Client()
