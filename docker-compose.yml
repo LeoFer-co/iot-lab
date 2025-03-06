@@ -21,6 +21,19 @@ services:
     volumes:
       - ./data:/app/data
     restart: always
+  
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: iot_dashboard
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/../data
+    depends_on:
+      - backend
+    restart: always
 
 volumes:
   mosquitto_data:
