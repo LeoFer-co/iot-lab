@@ -54,11 +54,10 @@
         }
 
         main {
-            max-width: 1400px;
+            flex: 1;
             width: 100%;
             margin: 20px auto;
             padding: 0 20px;
-            flex: 1;
             display: flex;
             flex-direction: column;
         }
@@ -70,10 +69,13 @@
             margin-bottom: 20px;
         }
 
+        /* Ajustamos la cuadrícula para ocupar todo el ancho y reacomodarse */
         .device-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            grid-gap: 20px;
+            gap: 20px;
+            /* Se crean tantas columnas como quepan, con un mínimo de 220px */
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            /* Espacio vertical y horizontal unificado en gap */
         }
 
         .device-card {
@@ -83,7 +85,12 @@
             padding: 15px;
             text-align: center;
             box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
+            transition: transform 0.2s ease-in-out; /* Efecto hover (opcional) */
         }
+
+            .device-card:hover {
+                transform: scale(1.03); /* Efecto ligero al pasar el mouse */
+            }
 
         .offline-card {
             background-color: var(--offline-card-bg);
@@ -139,6 +146,7 @@
             if (dev.status_final === "Desconectado") {
                 cardDiv.classList.add('offline-card');
             }
+
             let h3 = document.createElement('h3');
             h3.textContent = dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
             cardDiv.appendChild(h3);
