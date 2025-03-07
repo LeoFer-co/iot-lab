@@ -3,13 +3,10 @@
 <head>
     <meta charset="UTF-8" />
     <title>LC Projects - Dispositivos</title>
-
     <!-- Fuente Montserrat -->
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <style>
         :root {
             --body-bg: #1C242C;
@@ -126,10 +123,7 @@
 
     <main>
         <h1>Dispositivos en la red</h1>
-        <!-- Contenedor donde iremos añadiendo las tarjetas -->
-        <div class="device-grid" id="deviceGrid">
-            <!-- Se llenará dinámicamente con JS -->
-        </div>
+        <div class="device-grid" id="deviceGrid"></div>
     </main>
 
     <footer>
@@ -139,32 +133,24 @@
     <script>
         const deviceGrid = document.getElementById('deviceGrid');
 
-        // Función para construir la tarjeta de un dispositivo
         function buildDeviceCard(dev) {
-            // dev tiene: device_name, device_type, last_status, status_final, etc.
             let cardDiv = document.createElement('div');
             cardDiv.classList.add('device-card');
-
             if (dev.status_final === "Desconectado") {
                 cardDiv.classList.add('offline-card');
             }
-
-            // Título
             let h3 = document.createElement('h3');
             h3.textContent = dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
             cardDiv.appendChild(h3);
 
-            // Tipo
             let pTipo = document.createElement('p');
             pTipo.textContent = "Tipo: " + dev.device_type;
             cardDiv.appendChild(pTipo);
 
-            // Estado
             let pEstado = document.createElement('p');
             pEstado.textContent = "Estado: " + dev.status_final;
             cardDiv.appendChild(pEstado);
 
-            // Link
             if (dev.status_final === "Desconectado") {
                 let aDisabled = document.createElement('a');
                 aDisabled.classList.add('disabled');
@@ -176,20 +162,14 @@
                 aLink.textContent = "Ver Detalles";
                 cardDiv.appendChild(aLink);
             }
-
             return cardDiv;
         }
 
-        // Función para actualizar la lista de dispositivos
         async function updateDevices() {
             try {
                 const resp = await fetch("/devices_data");
                 const devices = await resp.json();
-
-                // Limpia el grid
                 deviceGrid.innerHTML = "";
-
-                // Construye las tarjetas
                 devices.forEach(dev => {
                     let card = buildDeviceCard(dev);
                     deviceGrid.appendChild(card);
@@ -199,9 +179,7 @@
             }
         }
 
-        // Llamar cada 5s
         setInterval(updateDevices, 5000);
-        // Llamada inicial
         updateDevices();
     </script>
 </body>

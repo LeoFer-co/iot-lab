@@ -7,9 +7,8 @@ DB_PATH = "data/data.db"
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
-# Crear tablas si no existen
+# TABLAS
 
-# Tabla de dispositivos
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,7 +19,6 @@ cursor.execute('''
   )
 ''')
 
-# Para Estación Meteorológica
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_estacion (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,7 +29,6 @@ cursor.execute('''
   )
 ''')
 
-# Para Microdós
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_microdos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,7 +39,6 @@ cursor.execute('''
   )
 ''')
 
-# Para Reactor Quitosano
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_reactor (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +51,6 @@ cursor.execute('''
   )
 ''')
 
-# Para LC_Shaker
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_lc_shaker (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,7 +65,6 @@ cursor.execute('''
   )
 ''')
 
-# Para LECOB 50
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_lecob50 (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,7 +77,6 @@ cursor.execute('''
   )
 ''')
 
-# Para UV ale
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_uvale (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,6 +91,7 @@ cursor.execute('''
     status TEXT
   )
 ''')
+
 conn.commit()
 
 def update_device(device_name, device_type, last_status):
@@ -119,95 +113,95 @@ def on_message(client, userdata, msg):
     try:
         payload = msg.payload.decode()
         data = json.loads(payload)
-        subtopic = msg.topic.split("/")[2]  # tipo del dispositivo
+        subtopic = msg.topic.split("/")[2]
         device_name = data.get("device_name", subtopic)
-        
+
         if subtopic == "estacion":
-            temp = data.get("temp")
-            hum  = data.get("hum")
-            pres = data.get("pres")
+            temp = data.get("temp", 0)
+            hum  = data.get("hum", 0)
+            pres = data.get("pres", 0)
             cursor.execute('''
               INSERT INTO measurements_estacion (temp, hum, pres)
               VALUES (?, ?, ?)
             ''', (temp, hum, pres))
             conn.commit()
             update_device(device_name, "estacion", "publicando")
-        
+
         elif subtopic == "microdos":
-            status    = data.get("status")
-            flow_set  = data.get("flow_set")
-            time_left = data.get("time_left")
+            status    = data.get("status", "idle")
+            flow_set  = data.get("flow_set", 0)
+            time_left = data.get("time_left", 0)
             cursor.execute('''
               INSERT INTO measurements_microdos (status, flow_set, time_left)
               VALUES (?, ?, ?)
             ''', (status, flow_set, time_left))
             conn.commit()
             update_device(device_name, "microdos", status)
-        
+
         elif subtopic == "reactor":
-            temp = data.get("temp")
-            speed = data.get("speed")
-            time_left = data.get("time_left")
-            max_time = data.get("max_time")
-            state = data.get("state")
+            temp = data.get("temp", 0)
+            speed = data.get("speed", 0)
+            time_left = data.get("time_left", 0)
+            max_time = data.get("max_time", 60)
+            state = data.get("state", "inactivo")
             cursor.execute('''
               INSERT INTO measurements_reactor (temp, speed, time_left, max_time, state)
               VALUES (?, ?, ?, ?, ?)
             ''', (temp, speed, time_left, max_time, state))
             conn.commit()
             update_device(device_name, "reactor", state)
-        
+
         elif subtopic == "lc_shaker":
-            speed = data.get("speed")
-            amp_mayor = data.get("amp_mayor")
-            amp_menor = data.get("amp_menor")
-            oscilaciones = data.get("oscilaciones")
-            time_left = data.get("time_left")
-            max_time = data.get("max_time")
-            state = data.get("state")
+            speed = data.get("speed", 0)
+            amp_mayor = data.get("amp_mayor", 0)
+            amp_menor = data.get("amp_menor", 0)
+            oscilaciones = data.get("oscilaciones", 0)
+            time_left = data.get("time_left", 0)
+            max_time = data.get("max_time", 60)
+            state = data.get("state", "idle")
             cursor.execute('''
               INSERT INTO measurements_lc_shaker (speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state)
               VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state))
             conn.commit()
             update_device(device_name, "lc_shaker", state)
-        
+
         elif subtopic == "lecob50":
-            on_time = data.get("on_time")
-            off_time = data.get("off_time")
-            time_left = data.get("time_left")
-            max_time = data.get("max_time")
-            status = data.get("status")
+            on_time = data.get("on_time", 0)
+            off_time = data.get("off_time", 0)
+            time_left = data.get("time_left", 0)
+            max_time = data.get("max_time", 60)
+            status = data.get("status", "idle")
             cursor.execute('''
               INSERT INTO measurements_lecob50 (on_time, off_time, time_left, max_time, status)
               VALUES (?, ?, ?, ?, ?)
             ''', (on_time, off_time, time_left, max_time, status))
             conn.commit()
             update_device(device_name, "lecob50", status)
-        
+
         elif subtopic == "uvale":
-            distance = data.get("distance")
-            time_left = data.get("time_left")
-            max_time = data.get("max_time")
-            door_state = data.get("door_state")
-            uv_state = data.get("uv_state")
-            hum = data.get("hum")
-            temp = data.get("temp")
-            status = data.get("status")
+            distance = data.get("distance", 0)
+            time_left = data.get("time_left", 0)
+            max_time = data.get("max_time", 60)
+            door_state = data.get("door_state", "cerrado")
+            uv_state = data.get("uv_state", "apagado")
+            hum = data.get("hum", 0)
+            temp = data.get("temp", 0)
+            status = data.get("status", "idle")
             cursor.execute('''
               INSERT INTO measurements_uvale (distance, time_left, max_time, door_state, uv_state, hum, temp, status)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', (distance, time_left, max_time, door_state, uv_state, hum, temp, status))
             conn.commit()
             update_device(device_name, "uvale", status)
-        
+
         else:
             print("Dispositivo desconocido:", subtopic)
             
     except Exception as e:
         print("Error procesando mensaje:", e)
 
-broker = "broker"  # Usamos el nombre del servicio en Docker Compose
+broker = "broker"  # Nombre del servicio en Docker Compose
 port = 1883
 
 client = mqtt.Client()
