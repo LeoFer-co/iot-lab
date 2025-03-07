@@ -104,14 +104,17 @@
         }
         /* Círculo para el estado actual */
         .state-circle {
-            width: 100px;
-            height: 100px;
+            width: 150px;
+            height: 150px;
             margin: 0 auto;
             border-radius: 50%;
-            line-height: 100px;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: #FFF;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            text-align: center;
+            white-space: nowrap; /* evita salto de línea */
         }
 
         a {
@@ -174,7 +177,7 @@
     </footer>
 
     <script>
-    // === 1) Gráfica de Temperatura (Chart.js) ===
+    // 1) Gráfica de Temperatura (Chart.js)
     const tempCtx = document.getElementById('reactorTempChart').getContext('2d');
     const reactorTempChart = new Chart(tempCtx, {
       type: 'line',
@@ -197,7 +200,8 @@
               color: "#FFFFFF",
               callback: function(value, index, ticks) {
                 let label = this.getLabelForValue(value);
-                return label.substring(11,16); // Muestra HH:MM
+                // Muestra solo HH:MM
+                return label.substring(11,16);
               },
               maxTicksLimit: 6
             },
@@ -218,8 +222,7 @@
       }
     });
 
-    // === 2) Gauges radiales para Velocidad y Tiempo ===
-    // Speed gauge (max 1000 rpm)
+    // 2) Gauges radiales (velocidad y tiempo)
     let speedGauge = new ProgressBar.Circle('#speedGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-speed-color').trim() || '#FFC45F',
       strokeWidth: 8,
@@ -235,7 +238,6 @@
       }
     });
 
-    // Time gauge
     let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-time-color').trim() || '#FF5A5F',
       strokeWidth: 8,
@@ -251,57 +253,56 @@
       }
     });
 
-    // === 3) Estado Actual en un círculo con color según la palabra ===
+    // 3) Función para asignar color según el estado actual
     function getColorForReactorState(state) {
-      // Ajusta los colores a tu gusto
+      // Ajusta los colores para tus estados
       switch(state) {
-        case "Desmineralización running": return "#FF9F5F";
-        case "Desproteinización running": return "#FF5A5F";
-        case "Desacetilación running":    return "#5FC3E4";
-        case "suministro":               return "#FFC45F";
-        case "lavando":                  return "#96FF5F";
-        case "inactivo":                 return "#B0B0B0";
-        default:                         return "#B0B0B0";
+        case "DM running": return "#FF9F5F";    // Desmineralización
+        case "DP running": return "#FF5A5F";    // Desproteinización
+        case "DA running": return "#5FC3E4";    // Desacetilación
+        case "suministro": return "#FFC45F";
+        case "lavando":    return "#96FF5F";
+        case "inactivo":   return "#B0B0B0";
+        default:           return "#B0B0B0";
       }
     }
 
-    // Función para actualizar la interfaz en tiempo real
+    // 4) Actualizar la interfaz en tiempo real
     async function updateReactorData() {
       try {
         const resp = await fetch('{{ url_for("device_reactor_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // data => { timestamps, temps, speeds, time_lefts, max_times, states }
+        // Se espera { timestamps, temps, speeds, time_lefts, max_times, states }
 
-        // 1) Actualizar gráfica de Temperatura
+        // Gráfica de Temperatura
         reactorTempChart.data.labels = data.timestamps;
         reactorTempChart.data.datasets[0].data = data.temps;
         reactorTempChart.update();
 
-        // 2) Tomar la última medición
         const lastIndex = data.temps.length - 1;
         if (lastIndex < 0) {
           console.log("No hay datos en measurements_reactor.");
           return;
         }
-        const currentSpeed   = data.speeds[lastIndex]     || 0;
-        const currentTime    = data.time_lefts[lastIndex] || 0;
-        const currentMaxTime = data.max_times[lastIndex]  || 60;
-        const currentState   = data.states[lastIndex]     || "inactivo";
 
-        // 3) Velocidad
+        // Velocidad
+        const currentSpeed   = data.speeds[lastIndex]     || 0;
         let ratioSpeed = currentSpeed / 1000.0; // max 1000 rpm
         if (ratioSpeed > 1) ratioSpeed = 1;
         speedGauge.animate(ratioSpeed, { duration: 500 });
         document.getElementById('speedGaugeText').textContent = currentSpeed.toFixed(0) + " rpm";
 
-        // 4) Tiempo
+        // Tiempo
+        const currentTime    = data.time_lefts[lastIndex] || 0;
+        const currentMaxTime = data.max_times[lastIndex]  || 60;
         let ratioTime = currentTime / currentMaxTime;
         if (ratioTime > 1) ratioTime = 1;
         timeGauge.animate(ratioTime, { duration: 500 });
         document.getElementById('timeGaugeText').textContent = currentTime + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
 
-        // 5) Estado Actual (círculo)
+        // Estado
+        const currentState = data.states[lastIndex] || "inactivo";
         const circle = document.getElementById('reactorStateCircle');
         circle.style.backgroundColor = getColorForReactorState(currentState);
         circle.textContent = currentState;
@@ -311,9 +312,7 @@
       }
     }
 
-    // Llamamos cada 5 segundos
     setInterval(updateReactorData, 5000);
-    // Llamada inicial
     updateReactorData();
     </script>
 </body>
