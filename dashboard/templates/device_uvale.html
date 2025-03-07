@@ -214,7 +214,7 @@
       }
     });
 
-    async function updateUVAleData() {
+    async function updateuvaleData() {
       try {
         const resp = await fetch('{{ url_for("device_uvale_data", device_name=device.device_name) }}');
         const data = await resp.json();
@@ -252,8 +252,8 @@
       }
     }
 
-    setInterval(updateUVAleData, 5000);
-    updateUVAleData();
+    setInterval(updateuvaleData, 5000);
+    updateuvaleData();
     </script>
 </body>
 </html>
