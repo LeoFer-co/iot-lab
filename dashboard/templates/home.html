@@ -70,17 +70,18 @@
             text-align: center;
             margin-bottom: 20px;
         }
-        /* Definición fija de 3 columnas por defecto (2 filas para 6 dispositivos) */
+
+        /* Tres columnas fijas, se adaptan si la pantalla es pequeña */
         .device-grid {
             display: grid;
+            grid-template-columns: repeat(3, minmax(280px, 1fr));
             gap: 20px;
-            grid-template-columns: repeat(3, 1fr);
-            justify-items: center;
+            justify-items: center; /* centra horizontalmente las tarjetas */
         }
-        /* Responsividad: si el ancho se reduce, se reacomoda */
+
         @media (max-width: 900px) {
             .device-grid {
-                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             }
         }
 
@@ -132,6 +133,11 @@
             padding: 10px 0;
             color: var(--text-secondary);
         }
+
+        /* Clase fantasma para arrastre */
+        .sortable-ghost {
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -150,6 +156,7 @@
     </footer>
 
     <script>
+        let hasUserSorted = false; // flag para no re-crear la cuadrícula si el usuario ya ordenó
         const deviceGrid = document.getElementById('deviceGrid');
 
         function buildDeviceCard(dev) {
@@ -185,9 +192,14 @@
         }
 
         async function updateDevices() {
+            // Si el usuario ya ordenó manualmente, no actualizamos más para no romper su orden
+            if (hasUserSorted) return;
+
             try {
                 const resp = await fetch("/devices_data");
                 const devices = await resp.json();
+
+                // Limpiamos y recreamos la cuadrícula
                 deviceGrid.innerHTML = "";
                 devices.forEach(dev => {
                     let card = buildDeviceCard(dev);
@@ -198,13 +210,30 @@
             }
         }
 
+        // Actualizamos cada 5s, pero si el usuario re-ordena, paramos
         setInterval(updateDevices, 5000);
         updateDevices();
 
-        // Hacemos la cuadrícula "draggable" usando SortableJS
+        // Activamos drag & drop con SortableJS
         new Sortable(deviceGrid, {
-            animation: 150,
-            ghostClass: 'sortable-ghost'
+            animation: 200,
+            ghostClass: 'sortable-ghost',
+            delay: 750,               // 0.75s de presionar en pantallas táctiles
+            delayOnTouchOnly: true,   // solo en pantallas táctiles
+            onChoose: function (evt) {
+                // Cambiamos color de la tarjeta que se está moviendo
+                evt.item.style.backgroundColor = "#FF5A5F";
+            },
+            onUnchoose: function (evt) {
+                // Si sueltas antes de mover, vuelve al color original
+                evt.item.style.backgroundColor = "";
+            },
+            onEnd: function (evt) {
+                // Al soltar la tarjeta en un nuevo lugar, restauramos color
+                evt.item.style.backgroundColor = "";
+                // Evitamos que se refresque desde el servidor y se pierda la nueva posición
+                hasUserSorted = true;
+            }
         });
     </script>
 </body>
