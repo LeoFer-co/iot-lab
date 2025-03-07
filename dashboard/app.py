@@ -331,29 +331,46 @@ def device_lecob50_data(device_name):
 def device_uvale_data(device_name):
     conn = get_db()
     cursor = conn.cursor()
-    # Verificar que el dispositivo exista y sea de tipo uvale
+    # Verificar que existe en 'devices' con device_type='uvale'
     cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='uvale'", (device_name,))
     dev = cursor.fetchone()
     if not dev:
         conn.close()
         return jsonify({"error": "No existe UV ale con ese nombre"}), 404
 
-    cursor.execute("SELECT * FROM measurements_uvale ORDER BY id DESC LIMIT 1")
-    row = cursor.fetchone()
+    # Consulta las últimas 30 mediciones
+    cursor.execute("SELECT * FROM measurements_uvale ORDER BY id DESC LIMIT 30")
+    rows = cursor.fetchall()
     conn.close()
-    if row:
-        return jsonify({
-            "distance": row["distance"],
-            "time_left": row["time_left"],
-            "max_time": row["max_time"],
-            "door_state": row["door_state"],
-            "uv_state": row["uv_state"],
-            "hum": row["hum"],
-            "temp": row["temp"],
-            "status": row["status"]
-        })
-    else:
+
+    if not rows:
         return jsonify({"error": "Sin datos aún"}), 200
 
+    # Construimos arrays para hum, temp, timestamps
+    timestamps = []
+    hum = []
+    temp = []
+
+    # Recorremos en orden cronológico (del más antiguo al más reciente)
+    for r in reversed(rows):
+        # Se asume que en la tabla hay una columna 'timestamp' en formato "YYYY-MM-DD HH:MM:SS"
+        timestamps.append(r["timestamp"])
+        hum.append(r["hum"])
+        temp.append(r["temp"])
+
+    # Tomamos la última fila (la más reciente) para distance, time_left, etc.
+    last = rows[0]  # Porque hicimos ORDER BY id DESC, la fila 0 es la más reciente
+    # Retorna un JSON con los arrays y los valores puntuales
+    return jsonify({
+        "distance": last["distance"],
+        "time_left": last["time_left"],
+        "max_time": last["max_time"],
+        "door_state": last["door_state"],
+        "uv_state": last["uv_state"],
+        "status": last["status"],
+        "hum": hum,
+        "temp": temp,
+        "timestamps": timestamps
+    })
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

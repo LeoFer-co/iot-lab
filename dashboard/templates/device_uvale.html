@@ -27,21 +27,11 @@
             padding: 20px;
         }
 
-        header, footer {
+        h1 {
             text-align: center;
             margin-bottom: 20px;
+            color: var(--accent);
         }
-
-            header img {
-                height: 50px;
-                vertical-align: middle;
-                margin-right: 10px;
-            }
-
-            header h1 {
-                display: inline;
-                color: var(--accent);
-            }
 
         .dashboard-container {
             max-width: 1200px;
@@ -92,7 +82,7 @@
             text-align: center;
             width: 100px;
         }
-        /* Círculo para el estado actual */
+        /* Círculo para el estado actual (150x150) */
         .state-circle {
             width: 150px;
             height: 150px;
@@ -119,27 +109,24 @@
         }
 
         footer {
+            text-align: center;
+            margin-top: 20px;
             color: var(--text-secondary);
         }
     </style>
 </head>
 <body>
-    <header>
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" />
-        <h1>{{ device.device_name|capitalize }} - UV ale</h1>
-    </header>
+    <h1>{{ device.device_name|capitalize }} - UV ale</h1>
 
     <div class="dashboard-container">
-        <!-- Primera fila: Indicadores generales -->
+        <!-- Primera fila: Distancia, Tiempo de Operación, Estado -->
         <div class="panel-row">
-            <!-- Distancia -->
             <div class="panel">
                 <h3>Distancia (cm)</h3>
                 <div class="gauge-container" id="distanceGaugeContainer">
                     <div id="distanceGaugeText" class="gauge-text">0 cm</div>
                 </div>
             </div>
-            <!-- Tiempo de Operación -->
             <div class="panel">
                 <h3>Tiempo de Operación</h3>
                 <div class="gauge-container" id="opTimeGaugeContainer">
@@ -147,7 +134,6 @@
                 </div>
                 <p style="margin-top:10px;font-size:0.9rem;" id="maxTimeLabel">max: 0 s</p>
             </div>
-            <!-- Estado Actual (círculo) -->
             <div class="panel">
                 <h3>Estado Actual</h3>
                 <div id="stateCircle" class="state-circle">--</div>
@@ -166,16 +152,14 @@
             </div>
         </div>
 
-        <!-- Tercera fila: Gráficos -->
+        <!-- Tercera fila: Gráficas de Humedad y Temperatura -->
         <div class="panel-row">
-            <!-- Gráfico de Humedad -->
             <div class="panel">
                 <h3>Humedad (%)</h3>
                 <div class="chart-container">
                     <canvas id="humChart"></canvas>
                 </div>
             </div>
-            <!-- Gráfico de Temperatura -->
             <div class="panel">
                 <h3>Temperatura (°C)</h3>
                 <div class="chart-container">
@@ -195,7 +179,7 @@
     </footer>
 
     <script>
-    // Gauge para Distancia (asumiendo rango 0-100 cm)
+    // Gauge para Distancia (rango 0-100 cm)
     let distanceGauge = new ProgressBar.Circle('#distanceGaugeContainer', {
       color: '#5FC3E4',
       strokeWidth: 8,
@@ -227,7 +211,7 @@
       }
     });
 
-    // Gráficos de línea para Humedad y Temperatura
+    // Gráficos de Humedad y Temperatura
     let humChart = new Chart(document.getElementById('humChart').getContext('2d'), {
       type: 'line',
       data: {
@@ -244,12 +228,19 @@
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          x: { ticks: { color: "#FFFFFF" }, title: { display: true, text: 'Hora', color: "#FFFFFF" } },
-          y: { ticks: { color: "#FFFFFF" }, title: { display: true, text: 'Humedad (%)', color: "#FFFFFF" } }
+          x: {
+            ticks: { color: "#FFFFFF" },
+            title: { display: true, text: 'Hora', color: "#FFFFFF" }
+          },
+          y: {
+            ticks: { color: "#FFFFFF" },
+            title: { display: true, text: 'Humedad (%)', color: "#FFFFFF" }
+          }
         },
         plugins: { legend: { labels: { color: "#FFFFFF" } } }
       }
     });
+
     let tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), {
       type: 'line',
       data: {
@@ -271,13 +262,17 @@
               color: "#FFFFFF",
               callback: function(value, index, ticks) {
                 let label = this.getLabelForValue(value);
+                // Muestra solo HH:MM
                 return label.substring(11,16);
               },
               maxTicksLimit: 6
             },
             title: { display: true, text: 'Hora', color: "#FFFFFF" }
           },
-          y: { ticks: { color: "#FFFFFF" }, title: { display: true, text: '°C', color: "#FFFFFF" } }
+          y: {
+            ticks: { color: "#FFFFFF" },
+            title: { display: true, text: '°C', color: "#FFFFFF" }
+          }
         },
         plugins: { legend: { labels: { color: "#FFFFFF" } } }
       }
@@ -288,33 +283,40 @@
       try {
         const resp = await fetch('{{ url_for("device_uvale_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // Se espera que data tenga:
-        // { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps }
+        // data => { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps }
+
         if (data.error) {
+          // Sin datos o dispositivo no encontrado
           document.getElementById('distanceGaugeText').textContent = "-- cm";
-          document.getElementById('opTimeGaugeText').textContent = "0 s";
+          document.getElementById('opTimeGaugeText').textContent = "-- s";
           document.getElementById('maxTimeLabel').textContent = "max: 0 s";
           document.getElementById('doorState').textContent = "--";
           document.getElementById('uvState').textContent = "--";
-          document.getElementById('uvStatus').textContent = "Desconectado";
+          const stateCircle = document.getElementById('stateCircle');
+          stateCircle.textContent = "Desconectado";
+          stateCircle.style.backgroundColor = "#B0B0B0";
           return;
         }
-        const { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps } = data;
 
-        // Actualizar gauge de distancia
+        let { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps } = data;
+
+        // 1) Distancia
         let ratioDistance = distance / 100;
         if (ratioDistance > 1) ratioDistance = 1;
         distanceGauge.animate(ratioDistance, { duration: 500 });
         document.getElementById('distanceGaugeText').textContent = distance + " cm";
 
-        // Actualizar gauge de tiempo de operación
-        let ratioOpTime = time_left / max_time;
-        if (ratioOpTime > 1) ratioOpTime = 1;
+        // 2) Tiempo de Operación
+        let ratioOpTime = 0;
+        if (max_time > 0) {
+          ratioOpTime = time_left / max_time;
+          if (ratioOpTime > 1) ratioOpTime = 1;
+        }
         opTimeGauge.animate(ratioOpTime, { duration: 500 });
         document.getElementById('opTimeGaugeText').textContent = time_left + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
 
-        // Actualizar gráficos de Humedad y Temperatura
+        // 3) Humedad y Temperatura (arrays)
         humChart.data.labels = timestamps;
         humChart.data.datasets[0].data = hum;
         humChart.update();
@@ -323,13 +325,26 @@
         tempChart.data.datasets[0].data = temp;
         tempChart.update();
 
-        // Actualizar indicadores de Puerta y Luz UV
+        // 4) Puerta y Luz UV
         document.getElementById('doorState').textContent = door_state;
         document.getElementById('uvState').textContent = uv_state;
 
-        // Actualizar estado (agregar círculo similar a otros dispositivos)
-        // Se actualizará en el panel "Estado Actual"
-        document.getElementById('uvStatus').textContent = status;
+        // 5) Estado Actual (círculo)
+        const stateCircle = document.getElementById('stateCircle');
+        stateCircle.textContent = status;
+        switch(status) {
+          case "running":
+            stateCircle.style.backgroundColor = "#FF5A5F";
+            break;
+          case "idle":
+            stateCircle.style.backgroundColor = "#B0B0B0";
+            break;
+          case "finalizado":
+            stateCircle.style.backgroundColor = "#5FC3E4";
+            break;
+          default:
+            stateCircle.style.backgroundColor = "#B0B0B0";
+        }
       } catch (err) {
         console.error("Error al actualizar datos de UV ale:", err);
       }
@@ -338,13 +353,5 @@
     setInterval(updateuvaleData, 5000);
     updateuvaleData();
     </script>
-
-    <!-- Agregamos un bloque para los indicadores separados de Puerta y Luz UV -->
-    <script>
-        // Si no están definidos en el HTML actual, puedes agregar elementos para Puerta, Luz UV y Estado.
-        // Por ejemplo, si en tu plantilla original no tienes estos IDs, asegúrate de agregarlos.
-        // En este ejemplo, se asume que "doorState", "uvState" y "uvStatus" ya existen.
-    </script>
-
 </body>
 </html>
