@@ -70,6 +70,7 @@
             text-align: center;
             margin-bottom: 20px;
         }
+
         /* Cuadrícula con 3 columnas fijas por defecto */
         .device-grid {
             display: grid;
@@ -100,9 +101,24 @@
                 transform: scale(1.03);
             }
 
+        /* Diferenciamos los dispositivos desconectados */
         .offline-card {
             background-color: var(--offline-card-bg);
+            position: relative;
         }
+
+            .offline-card::after {
+                content: "DESCONECTADO";
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                background: rgba(255, 255, 255, 0.8);
+                color: #4B1E1E;
+                padding: 2px 6px;
+                font-size: 0.75rem;
+                border-radius: 4px;
+                font-weight: bold;
+            }
 
         .device-card h3 {
             margin-bottom: 10px;
@@ -132,6 +148,7 @@
             padding: 10px 0;
             color: var(--text-secondary);
         }
+
         /* Clase fantasma para arrastre */
         .sortable-ghost {
             opacity: 0.6;
@@ -143,41 +160,47 @@
         <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" class="logo" />
         <h2 class="header-title">LC Projects - Dispositivos</h2>
     </header>
+
     <main>
         <h1>Dispositivos en la red</h1>
         <div class="device-grid" id="deviceGrid"></div>
     </main>
+
     <footer>
         2025 - LC Projects
     </footer>
+
     <script>
         const deviceGrid = document.getElementById('deviceGrid');
 
-        // Función para crear una tarjeta (si no existe)
+        // Crea la tarjeta para un dispositivo
         function buildDeviceCard(dev) {
-            const cardDiv = document.createElement('div');
+            let cardDiv = document.createElement('div');
             cardDiv.classList.add('device-card');
-            cardDiv.dataset.id = dev.device_name; // Guardamos el ID del dispositivo
+            cardDiv.dataset.id = dev.device_name; // Identificador para guardar orden
 
-            const h3 = document.createElement('h3');
+            if (dev.status_final === "Desconectado") {
+                cardDiv.classList.add('offline-card');
+            }
+            let h3 = document.createElement('h3');
             h3.textContent = dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
             cardDiv.appendChild(h3);
 
-            const pTipo = document.createElement('p');
+            let pTipo = document.createElement('p');
             pTipo.textContent = "Tipo: " + dev.device_type;
             cardDiv.appendChild(pTipo);
 
-            const pEstado = document.createElement('p');
+            let pEstado = document.createElement('p');
             pEstado.textContent = "Estado: " + dev.status_final;
             cardDiv.appendChild(pEstado);
 
             if (dev.status_final === "Desconectado") {
-                const aDisabled = document.createElement('a');
+                let aDisabled = document.createElement('a');
                 aDisabled.classList.add('disabled');
                 aDisabled.textContent = "Ver Detalles";
                 cardDiv.appendChild(aDisabled);
             } else {
-                const aLink = document.createElement('a');
+                let aLink = document.createElement('a');
                 aLink.href = "/device/" + dev.device_name;
                 aLink.textContent = "Ver Detalles";
                 cardDiv.appendChild(aLink);
@@ -185,73 +208,75 @@
             return cardDiv;
         }
 
-        // Función para actualizar (merge) el contenido de las tarjetas existentes
+        // Renderiza las tarjetas en deviceGrid (actualizando solo contenido)
+        function renderDevices(devices) {
+            // Para evitar re-crear el DOM y perder el orden actual,
+            // actualizamos el contenido de cada tarjeta existente,
+            // y agregamos las que falten.
+            const existingCards = Array.from(deviceGrid.children);
+            const processed = new Set();
+
+            // Actualizamos tarjetas existentes
+            existingCards.forEach(card => {
+                const id = card.dataset.id;
+                const dev = devices.find(d => d.device_name === id);
+                if (dev) {
+                    // Actualizamos título y párrafos
+                    card.querySelector('h3').textContent = dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
+                    const ps = card.querySelectorAll('p');
+                    if (ps.length >= 2) {
+                        ps[0].textContent = "Tipo: " + dev.device_type;
+                        ps[1].textContent = "Estado: " + dev.status_final;
+                    }
+                    // Actualizamos el enlace
+                    const a = card.querySelector('a');
+                    if (dev.status_final === "Desconectado") {
+                        if (a) {
+                            a.classList.add('disabled');
+                            a.textContent = "Ver Detalles";
+                        }
+                    } else {
+                        if (a) {
+                            a.classList.remove('disabled');
+                            a.href = "/device/" + id;
+                            a.textContent = "Ver Detalles";
+                        }
+                    }
+                    processed.add(id);
+                }
+            });
+
+            // Agregamos tarjetas nuevas (para dispositivos que no estaban en el DOM)
+            devices.forEach(dev => {
+                if (!processed.has(dev.device_name)) {
+                    const card = buildDeviceCard(dev);
+                    deviceGrid.appendChild(card);
+                }
+            });
+
+            // Reordenamos el DOM según el orden recibido
+            devices.forEach(dev => {
+                const card = document.querySelector(`.device-card[data-id="${dev.device_name}"]`);
+                if (card) {
+                    deviceGrid.appendChild(card);
+                }
+            });
+        }
+
         async function updateDevices() {
             try {
                 const resp = await fetch("/devices_data");
                 const devices = await resp.json();
-
-                // Crear un mapa de dispositivos de la respuesta para buscar por device_name
-                const devicesMap = {};
-                devices.forEach(dev => { devicesMap[dev.device_name] = dev; });
-
-                // Recorrer las tarjetas existentes y actualizar su contenido si corresponde
-                const existingCards = Array.from(deviceGrid.children);
-                const processed = new Set();
-                existingCards.forEach(card => {
-                    const id = card.dataset.id;
-                    if (devicesMap[id]) {
-                        // Actualizamos contenido
-                        card.querySelector('h3').textContent = id.charAt(0).toUpperCase() + id.slice(1);
-                        const ps = card.querySelectorAll('p');
-                        if (ps.length >= 2) {
-                            ps[0].textContent = "Tipo: " + devicesMap[id].device_type;
-                            ps[1].textContent = "Estado: " + devicesMap[id].status_final;
-                        }
-                        // Actualizamos el link si existe
-                        const a = card.querySelector('a');
-                        if (devicesMap[id].status_final === "Desconectado") {
-                            if (a) {
-                                a.classList.add('disabled');
-                                a.textContent = "Ver Detalles";
-                            }
-                        } else {
-                            if (a) {
-                                a.classList.remove('disabled');
-                                a.href = "/device/" + id;
-                                a.textContent = "Ver Detalles";
-                            }
-                        }
-                        processed.add(id);
-                    }
-                });
-
-                // Para los dispositivos nuevos (no existentes), crear la tarjeta
-                devices.forEach(dev => {
-                    if (!processed.has(dev.device_name)) {
-                        const card = buildDeviceCard(dev);
-                        deviceGrid.appendChild(card);
-                    }
-                });
-
-                // Reordenar las tarjetas en el DOM según el orden recibido
-                // (Suponemos que la respuesta "devices" está en el orden correcto)
-                devices.forEach(dev => {
-                    const card = document.querySelector(`.device-card[data-id="${dev.device_name}"]`);
-                    if (card) {
-                        deviceGrid.appendChild(card);
-                    }
-                });
+                renderDevices(devices);
             } catch (err) {
                 console.error("Error al actualizar dispositivos:", err);
             }
         }
 
-        // Actualizamos cada 5 segundos, pero sin borrar el DOM completo
         setInterval(updateDevices, 5000);
         updateDevices();
 
-        // Activamos drag & drop con SortableJS y guardamos el nuevo orden en el backend
+        // Activamos drag & drop con SortableJS
         new Sortable(deviceGrid, {
             animation: 300,
             easing: "cubic-bezier(0.25, 0.8, 0.5, 1)",
@@ -266,12 +291,12 @@
             },
             onEnd: async function (evt) {
                 evt.item.style.backgroundColor = "";
-                // Recolectamos el nuevo orden (basado en los dataset.id)
+                // Recolectamos el nuevo orden (basado en dataset.id)
                 let newOrder = [];
                 deviceGrid.childNodes.forEach(card => {
                     newOrder.push(card.dataset.id);
                 });
-                // Enviamos el nuevo orden al backend para guardarlo
+                // Enviamos el nuevo orden al backend
                 try {
                     await fetch("/api/save_order", {
                         method: "POST",
