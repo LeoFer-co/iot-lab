@@ -166,8 +166,35 @@ def device_detail(device_name):
 
 @app.route("/device/<device_name>/estacion_data")
 def device_estacion_data(device_name):
-    # ... Igual que antes ...
-    pass
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='estacion'", (device_name,))
+    dev = cursor.fetchone()
+    if not dev:
+        conn.close()
+        return jsonify({"error": "No existe la estación con ese nombre"}), 404
+
+    cursor.execute("SELECT * FROM measurements_estacion ORDER BY id DESC LIMIT 30")
+    rows = cursor.fetchall()
+    conn.close()
+
+    timestamps = []
+    temps = []
+    hums = []
+    press = []
+    for r in reversed(rows):
+        timestamps.append(r["timestamp"])
+        temps.append(r["temp"])
+        hums.append(r["hum"])
+        press.append(r["pres"])
+
+    return jsonify({
+        "timestamps": timestamps,
+        "temps": temps,
+        "hums": hums,
+        "press": press
+    })
+
 
 @app.route("/device/<device_name>/microdos_data")
 def device_microdos_data(device_name):
