@@ -82,7 +82,6 @@
             text-align: center;
             width: 100px;
         }
-
         /* Círculo para el estado actual (150x150) */
         .state-circle {
             width: 150px;
@@ -96,8 +95,7 @@
             color: #FFF;
             text-align: center;
         }
-
-        /* Canvas para cada amplitud */
+        /* Canvas para las V */
         .ampCanvas {
             width: 200px;
             height: 200px;
@@ -139,7 +137,7 @@
                 </div>
                 <p style="margin-top:10px;font-size:0.9rem;" id="maxTimeLabel">max: 0 s</p>
             </div>
-            <!-- Estado en círculo -->
+            <!-- Estado -->
             <div class="panel">
                 <h3>Estado</h3>
                 <div id="stateCircle" class="state-circle">idle</div>
@@ -152,13 +150,13 @@
                 <h3>Amplitud Mayor</h3>
                 <canvas id="vCanvasMayor" class="ampCanvas"></canvas>
                 <p>Mayor: <span id="ampMayorVal">0</span>°</p>
-                <p>Oscilaciones: <span id="oscilacionesVal">0</span></p>
             </div>
-            <!-- Amplitud Menor -->
+            <!-- Amplitud Menor + Oscilaciones -->
             <div class="panel">
                 <h3>Amplitud Menor</h3>
                 <canvas id="vCanvasMenor" class="ampCanvas"></canvas>
                 <p>Menor: <span id="ampMenorVal">0</span>°</p>
+                <p>Oscilaciones: <span id="oscilacionesVal">0</span></p>
             </div>
         </div>
     </div>
@@ -172,7 +170,7 @@
     </footer>
 
     <script>
-    // Gauge para velocidad (máx 80 rpm)
+    // Gauges
     let speedGauge = new ProgressBar.Circle('#speedGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-speed-color').trim() || '#FF5A5F',
       strokeWidth: 8,
@@ -188,7 +186,6 @@
       }
     });
 
-    // Gauge para tiempo restante
     let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-time-color').trim() || '#FFC45F',
       strokeWidth: 8,
@@ -204,39 +201,44 @@
       }
     });
 
-    // Dibuja la V orientada hacia arriba en un canvas
-    // apex abajo, líneas subiendo
-    function drawUpwardV(canvasId, amp) {
+    // Dibuja una V orientada hacia arriba en un canvas
+    // angle: valor en grados (0-60 aprox)
+    // lineWidth: grosor de la línea
+    function drawUpwardV(canvasId, angle, lineWidth) {
       const canvas = document.getElementById(canvasId);
       const ctx = canvas.getContext('2d');
       // Limpia
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // apex en bottom center
+      const margin = 20; // margen para que no toque bordes
       const centerX = canvas.width / 2;
-      const bottomY = canvas.height - 20;
-      const topY = 20;
+      const bottomY = canvas.height - margin;
+      const topY = margin;
       // define un maxAngle, por ejemplo 60
       const maxAngle = 60;
-      const lineWidth = 4;
       ctx.lineWidth = lineWidth;
       ctx.strokeStyle = "#5FC3E4";
 
-      // factor para traducir el ángulo a offset horizontal
-      const factor = 1.5;
-      let offset = (amp / maxAngle) * factor * (canvas.width / 2);
-      if (offset > canvas.width / 2) offset = canvas.width / 2; // saturamos
+      // factor: para traducir el ángulo a offset horizontal
+      // si angle=60, offset = (canvas.width/2 - margin)
+      let offset = (angle / maxAngle) * ( (canvas.width/2) - margin );
+      if (offset < 0) offset = 0;
+      if (offset > (canvas.width/2 - margin)) {
+        offset = (canvas.width/2 - margin);
+      }
 
-      // Apex es (centerX, bottomY)
+      // apex es (centerX, bottomY)
       // lineas suben a (centerX ± offset, topY)
+      // punta abajo, lineas hacia arriba
+      // linea izquierda
       ctx.beginPath();
-      // Linea izquierda
       ctx.moveTo(centerX, bottomY);
       ctx.lineTo(centerX - offset, topY);
       ctx.stroke();
 
+      // linea derecha
       ctx.beginPath();
-      // Linea derecha
       ctx.moveTo(centerX, bottomY);
       ctx.lineTo(centerX + offset, topY);
       ctx.stroke();
@@ -246,7 +248,6 @@
       try {
         const resp = await fetch('{{ url_for("device_lc_shaker_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // Se espera que data tenga:
         // { timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states }
         const lastIndex = data.speeds.length - 1;
         if (lastIndex < 0) {
@@ -274,7 +275,7 @@
         document.getElementById('timeGaugeText').textContent = currentTime + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
 
-        // Estado
+        // Estado en el círculo
         const stateCircle = document.getElementById('stateCircle');
         stateCircle.textContent = currentState;
         switch(currentState) {
@@ -294,13 +295,13 @@
             stateCircle.style.backgroundColor = "#B0B0B0";
         }
 
-        // Amplitud mayor
+        // Amplitud mayor (línea más gruesa, p. ej. 6)
         document.getElementById('ampMayorVal').textContent = currentAmpM.toFixed(1);
-        drawUpwardV("vCanvasMayor", currentAmpM);
+        drawUpwardV("vCanvasMayor", currentAmpM, 6);
 
-        // Amplitud menor
+        // Amplitud menor (línea normal, p. ej. 4)
         document.getElementById('ampMenorVal').textContent = currentAmpm.toFixed(1);
-        drawUpwardV("vCanvasMenor", currentAmpm);
+        drawUpwardV("vCanvasMenor", currentAmpm, 4);
 
         // Oscilaciones
         document.getElementById('oscilacionesVal').textContent = currentOsc;
