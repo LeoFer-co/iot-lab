@@ -24,6 +24,8 @@
             --running: #5FC3E4;
             --idle: #B0B0B0;
             --finished: #FF5A5F;
+            --seteando: #FFD35F; /* Ejemplo de color */
+            --seteado: #96FF5F; /* Otro color para 'seteado' */
         }
 
         body {
@@ -79,43 +81,15 @@
                 color: var(--accent);
             }
 
-        .status-label {
-            font-weight: 600;
-        }
-
-        .status-value {
-            font-weight: 400;
-            display: block;
-            margin-top: 5px;
-            font-size: 1.2rem;
-        }
-
-            .status-value.running {
-                color: var(--running);
-            }
-
-            .status-value.idle {
-                color: var(--idle);
-            }
-
-            .status-value.finished {
-                color: var(--finished);
-            }
-
-        .countdown {
-            font-size: 1.2rem;
-            margin-top: 10px;
-        }
-
-        /* Radial container for flow gauge */
-        .flow-gauge {
+        /* Radial containers */
+        .gauge-container {
             width: 150px;
             height: 150px;
             margin: 0 auto;
             position: relative;
         }
 
-        .flow-text {
+        .gauge-text {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -123,6 +97,7 @@
             font-size: 1rem;
             color: var(--text-color);
             text-align: center;
+            width: 100px;
         }
 
         a {
@@ -147,25 +122,30 @@
 
     <div class="dashboard-container">
         <h2>Estado del Equipo</h2>
-        <div id="statusPanel" class="flex-row">
-            <!-- Panel 1: Estado -->
+        <div class="flex-row">
+
+            <!-- Panel 1: Estado Actual (radial gauge) -->
             <div class="panel">
                 <h3>Estado Actual</h3>
-                <span id="statusValue" class="status-value idle">Idle</span>
-            </div>
-
-            <!-- Panel 2: Flujo seteado (gauge radial) -->
-            <div class="panel">
-                <h3>Flujo Seteado</h3>
-                <div class="flow-gauge" id="flowGaugeContainer">
-                    <div id="flowText" class="flow-text">0 ml/min</div>
+                <div class="gauge-container" id="statusGaugeContainer">
+                    <div id="statusGaugeText" class="gauge-text">idle</div>
                 </div>
             </div>
 
-            <!-- Panel 3: Tiempo restante (countdown) -->
+            <!-- Panel 2: Flujo Seteado (radial gauge) -->
+            <div class="panel">
+                <h3>Flujo Seteado</h3>
+                <div class="gauge-container" id="flowGaugeContainer">
+                    <div id="flowText" class="gauge-text">0 ml/min</div>
+                </div>
+            </div>
+
+            <!-- Panel 3: Tiempo Restante (radial countdown) -->
             <div class="panel">
                 <h3>Tiempo Restante</h3>
-                <div id="timeLeft" class="countdown">-- s</div>
+                <div class="gauge-container" id="timeGaugeContainer">
+                    <div id="timeText" class="gauge-text">0 s</div>
+                </div>
             </div>
         </div>
     </div>
@@ -179,14 +159,32 @@
     </footer>
 
     <script>
-    // Creamos un radial gauge para el flujo usando ProgressBar.js
+    // Creamos 3 radial gauges con ProgressBar.js
+
+    // 1) Gauge para el Estado Actual
+    let statusGauge = new ProgressBar.Circle('#statusGaugeContainer', {
+      color: '#B0B0B0',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500,
+      text: { value: '' },
+      from: { color: '#B0B0B0' },
+      to: { color: '#5FC3E4' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+      }
+    });
+
+    // 2) Gauge para el Flujo Seteado
     let flowGauge = new ProgressBar.Circle('#flowGaugeContainer', {
       color: '#5FC3E4',
       strokeWidth: 8,
       trailColor: '#2A333B',
       trailWidth: 8,
       easing: 'easeInOut',
-      duration: 500, // animación
+      duration: 500,
       text: { value: '' },
       from: { color: '#5FC3E4' },
       to: { color: '#5FC3E4' },
@@ -195,6 +193,38 @@
       }
     });
 
+    // 3) Gauge para el Tiempo Restante
+    let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
+      color: '#FF5A5F',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500,
+      text: { value: '' },
+      from: { color: '#5FC3E4' },
+      to: { color: '#FF5A5F' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+      }
+    });
+
+    // Mapeo de estado -> color
+    function getColorForStatus(status) {
+      switch(status) {
+        case 'running':   return getComputedStyle(document.documentElement).getPropertyValue('--running');
+        case 'idle':      return getComputedStyle(document.documentElement).getPropertyValue('--idle');
+        case 'finished':  return getComputedStyle(document.documentElement).getPropertyValue('--finished');
+        case 'seteando':  return getComputedStyle(document.documentElement).getPropertyValue('--seteando');
+        case 'seteado':   return getComputedStyle(document.documentElement).getPropertyValue('--seteado');
+        default:          return '#B0B0B0'; // desconocido
+      }
+    }
+
+    // Config para timeGauge
+    let maxTime = 100; // Ajusta si tus tiempos son mayores
+    // Si time_left > maxTime, saturamos a 1.0
+
     async function updateMicrodosStatus() {
       try {
         const resp = await fetch('{{ url_for("device_microdos_data", device_name=device.device_name) }}');
@@ -202,10 +232,13 @@
 
         if (data.error) {
           // Muestra error o algo si no hay datos
-          document.getElementById('statusValue').textContent = "Sin datos";
-          document.getElementById('timeLeft').textContent = "-- s";
-          flowGauge.set(0);
+          document.getElementById('statusGaugeText').textContent = "Sin datos";
           document.getElementById('flowText').textContent = "0 ml/min";
+          document.getElementById('timeText').textContent = "0 s";
+
+          statusGauge.set(0);
+          flowGauge.set(0);
+          timeGauge.set(0);
           return;
         }
 
@@ -214,23 +247,29 @@
         let flowSet = data.flow_set || 0;
         let timeLeft = data.time_left || 0;
 
-        // Actualizar estado
-        let statusValue = document.getElementById('statusValue');
-        statusValue.textContent = status;
-        // Remover clases viejas
-        statusValue.classList.remove('running', 'idle', 'finished');
-        statusValue.classList.add(status);
+        // 1) Actualizar gauge de estado
+        // El ratio siempre será 1, pero el color cambia según el estado
+        let color = getColorForStatus(status);
+        statusGauge.animate(1.0, {
+          from: { color: statusGauge.path.getAttribute('stroke') || '#B0B0B0' },
+          to: { color: color }
+        });
+        // Cambiar texto interno
+        document.getElementById('statusGaugeText').textContent = status;
 
-        // Actualizar flujo
-        // Asumamos un rango de 0 a 50 ml/min => ajusta segun tu necesidad
-        let maxFlow = 50;
-        let ratio = flowSet / maxFlow;
-        if (ratio > 1) ratio = 1;
-        flowGauge.animate(ratio, { duration: 500 });
+        // 2) Flujo
+        let maxFlow = 150; // Ajusta
+        let ratioFlow = flowSet / maxFlow;
+        if (ratioFlow > 1) ratioFlow = 1;
+        flowGauge.animate(ratioFlow, { duration: 500 });
         document.getElementById('flowText').textContent = flowSet.toFixed(1) + " ml/min";
 
-        // Actualizar tiempo
-        document.getElementById('timeLeft').textContent = timeLeft + " s";
+        // 3) Tiempo Restante
+        if (timeLeft < 0) timeLeft = 0;
+        let ratioTime = timeLeft / maxTime;
+        if (ratioTime > 1) ratioTime = 1;
+        timeGauge.animate(ratioTime, { duration: 500 });
+        document.getElementById('timeText').textContent = timeLeft + " s";
 
       } catch (err) {
         console.error("Error actualizando Microdós:", err);
