@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
     <title>{{ device.device_name|capitalize }} - LC_Shaker</title>
-    <link rel="preconnect" href="https://fonts.gstatic.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Incluimos ProgressBar.js para los gauges -->
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
     <style>
         :root {
@@ -24,21 +25,11 @@
             padding: 20px;
         }
 
-        header, footer {
+        h1 {
             text-align: center;
             margin-bottom: 20px;
+            color: var(--accent);
         }
-
-            header img {
-                height: 50px;
-                vertical-align: middle;
-                margin-right: 10px;
-            }
-
-            header h1 {
-                display: inline;
-                color: var(--accent);
-            }
 
         .dashboard-container {
             max-width: 1200px;
@@ -66,6 +57,12 @@
             flex: 1 1 250px;
         }
 
+            .panel h3 {
+                margin-bottom: 10px;
+                color: var(--accent);
+                font-size: 1.1rem;
+            }
+
         .gauge-container {
             width: 150px;
             height: 150px;
@@ -83,20 +80,6 @@
             text-align: center;
             width: 100px;
         }
-        /* Canvas para dibujar la V de amplitudes */
-        #vCanvas {
-            width: 200px;
-            height: 200px;
-            background-color: #2A333B;
-            border: 1px solid var(--card-border);
-            margin: 0 auto;
-            display: block;
-        }
-
-        .info-text {
-            font-size: 1.1rem;
-            margin-top: 10px;
-        }
 
         a {
             color: #5FC3E4;
@@ -105,50 +88,45 @@
     </style>
 </head>
 <body>
-    <header>
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" />
-        <h1>{{ device.device_name|capitalize }} - LC_Shaker</h1>
-    </header>
+    <h1>{{ device.device_name|capitalize }} - LC_Shaker</h1>
 
     <div class="dashboard-container">
         <div class="panel-row">
-            <!-- Panel: Velocidad -->
+            <!-- Velocidad -->
             <div class="panel">
                 <h3>Velocidad (rpm)</h3>
                 <div class="gauge-container" id="speedGaugeContainer">
                     <div id="speedGaugeText" class="gauge-text">0 rpm</div>
                 </div>
             </div>
-            <!-- Panel: Amplitud -->
-            <div class="panel">
-                <h3>Amplitud</h3>
-                <canvas id="vCanvas"></canvas>
-                <div class="info-text">
-                    Mayor: <span id="ampMayor">0°</span> &nbsp;|&nbsp;
-                    Menor: <span id="ampMenor">0°</span>
-                </div>
-                <div class="info-text">
-                    Oscilaciones: <span id="oscilaciones">0</span>
-                </div>
-            </div>
-            <!-- Panel: Tiempo Restante -->
+            <!-- Tiempo Restante -->
             <div class="panel">
                 <h3>Tiempo Restante</h3>
                 <div class="gauge-container" id="timeGaugeContainer">
                     <div id="timeGaugeText" class="gauge-text">0 s</div>
                 </div>
+                <p style="margin-top:10px; font-size:0.9rem;" id="maxTimeLabel">max: 0 s</p>
+            </div>
+            <!-- Estado y Oscilaciones -->
+            <div class="panel">
+                <h3>Estado</h3>
+                <p id="shakerState">idle</p>
+                <p id="oscilacionesInfo">Osc: 0</p>
             </div>
         </div>
-        <!-- Panel: Estado Actual -->
-        <div class="panel">
-            <h3>Estado Actual</h3>
-            <div id="stateDisplay" style="font-size:1.2rem; margin-top:10px;">--</div>
+        <div class="panel-row">
+            <!-- Amplitud -->
+            <div class="panel">
+                <h3>Amplitud</h3>
+                <p>Mayor: <span id="ampMayorVal">0</span>°</p>
+                <p>Menor: <span id="ampMenorVal">0</span>°</p>
+            </div>
         </div>
     </div>
 
-    <footer>
-        2025 - LC Projects
-    </footer>
+    <div style="text-align:center; margin-top:20px;">
+        <a href="{{ url_for('home') }}">Volver</a>
+    </div>
 
     <script>
     // Gauge para velocidad (máx 80 rpm)
@@ -167,86 +145,61 @@
       }
     });
 
-    // Gauge para tiempo restante (usando el maxTime enviado por el dispositivo)
+    // Gauge para tiempo restante
     let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
-      color: '#FF5A5F',
+      color: '#FFC45F',
       strokeWidth: 8,
       trailColor: '#2A333B',
       trailWidth: 8,
       easing: 'easeInOut',
       duration: 500,
       text: { value: '' },
-      from: { color: '#FF5A5F' },
-      to: { color: '#FF5A5F' },
+      from: { color: '#FFC45F' },
+      to: { color: '#FFC45F' },
       step: function(state, circle) {
         circle.path.setAttribute('stroke', state.color);
       }
     });
 
-    // Función para dibujar la "V" de amplitud en el canvas vCanvas
-    function drawV(ampMayor, ampMenor) {
-      const canvas = document.getElementById('vCanvas');
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Dibujar una V central
-      // Definir coordenadas basadas en el canvas (200x200)
-      const centerX = canvas.width / 2;
-      const topY = 20;
-      const bottomY = canvas.height - 20;
-      // Ajustar la amplitud mayor y menor a un rango visual
-      const maxAngle = 60; // grados máximos para representación
-      const factor = 1; // ajustar si es necesario
-      let angleMayor = Math.min(ampMayor, maxAngle) * factor;
-      let angleMenor = Math.min(ampMenor, maxAngle) * factor;
-      // Dibujar la línea central (vertical)
-      ctx.strokeStyle = "#5FC3E4";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(centerX, topY);
-      ctx.lineTo(centerX, bottomY);
-      ctx.stroke();
-      // Dibujar la V: líneas inclinadas que parten desde la base del centro
-      // Para mayor amplitud: dibujar dos líneas formando una V
-      const offsetMayor = (angleMayor / maxAngle) * 50;
-      const offsetMenor = (angleMenor / maxAngle) * 50;
-      ctx.beginPath();
-      ctx.moveTo(centerX, topY);
-      ctx.lineTo(centerX - offsetMayor, bottomY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(centerX, topY);
-      ctx.lineTo(centerX + offsetMenor, bottomY);
-      ctx.stroke();
-    }
-
-    // Función para actualizar los datos del LC_Shaker
     async function updateLCShakerData() {
       try {
         const resp = await fetch('{{ url_for("device_lc_shaker_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // data esperado: { speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state }
-        const { speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state } = data;
+        // Se espera que data tenga:
+        // { timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states }
+        const lastIndex = data.speeds.length - 1;
+        if (lastIndex < 0) {
+          console.log("No hay datos en measurements_lc_shaker.");
+          return;
+        }
+        let currentSpeed = data.speeds[lastIndex] || 0;
+        let currentAmpM  = data.amp_mayors[lastIndex] || 0;
+        let currentAmpm  = data.amp_menors[lastIndex] || 0;
+        let currentOsc   = data.oscs[lastIndex] || 0;
+        let currentTime  = data.time_lefts[lastIndex] || 0;
+        let currentMaxTime = data.max_times[lastIndex] || 60;
+        let currentState = data.states[lastIndex] || "idle";
 
         // Actualizar gauge de velocidad
-        let ratioSpeed = speed / 80; // velocidad max 80 rpm
+        let ratioSpeed = currentSpeed / 80;
         if (ratioSpeed > 1) ratioSpeed = 1;
         speedGauge.animate(ratioSpeed, { duration: 500 });
-        document.getElementById('speedGaugeText').textContent = speed.toFixed(0) + " rpm";
+        document.getElementById('speedGaugeText').textContent = currentSpeed.toFixed(0) + " rpm";
 
-        // Actualizar la V de amplitud
-        drawV(amp_mayor, amp_menor);
-        document.getElementById('ampMayor').textContent = amp_mayor + "°";
-        document.getElementById('ampMenor').textContent = amp_menor + "°";
-        document.getElementById('oscilaciones').textContent = oscilaciones;
-
-        // Actualizar gauge de tiempo restante
-        let ratioTime = time_left / max_time;
+        // Actualizar gauge de tiempo
+        let ratioTime = currentTime / currentMaxTime;
         if (ratioTime > 1) ratioTime = 1;
         timeGauge.animate(ratioTime, { duration: 500 });
-        document.getElementById('timeGaugeText').textContent = time_left + " s";
+        document.getElementById('timeGaugeText').textContent = currentTime + " s";
+        document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
 
-        // Actualizar estado
-        document.getElementById('stateDisplay').textContent = state;
+        // Actualizar estado y oscilaciones
+        document.getElementById('shakerState').textContent = currentState;
+        document.getElementById('oscilacionesInfo').textContent = "Osc: " + currentOsc;
+
+        // Actualizar amplitudes
+        document.getElementById('ampMayorVal').textContent = currentAmpM.toFixed(1);
+        document.getElementById('ampMenorVal').textContent = currentAmpm.toFixed(1);
       } catch (err) {
         console.error("Error al actualizar LC_Shaker:", err);
       }
