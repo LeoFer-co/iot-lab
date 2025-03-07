@@ -6,7 +6,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Incluimos ProgressBar.js para los gauges y Chart.js para los donut charts -->
+    <!-- ProgressBar.js para los gauges y Chart.js para los gráficos de pastel -->
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -66,7 +66,7 @@
                 font-size: 1.1rem;
             }
 
-        .gauge-container, .donut-container {
+        .gauge-container {
             width: 150px;
             height: 150px;
             margin: 0 auto;
@@ -96,8 +96,15 @@
             color: #FFF;
             text-align: center;
         }
-        /* Canvas para los donut charts */
-        .donut-canvas {
+        /* Canvas para los gráficos de pastel */
+        .pie-container {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .pie-canvas {
             width: 100%;
             height: 100%;
         }
@@ -142,21 +149,21 @@
         </div>
 
         <div class="panel-row">
-            <!-- Amplitud Mayor (Donut Chart) -->
+            <!-- Amplitud Mayor (Pie chart) -->
             <div class="panel">
                 <h3>Amplitud Mayor</h3>
-                <div class="donut-container">
-                    <canvas id="donutCanvasMayor" class="donut-canvas"></canvas>
+                <div class="pie-container">
+                    <canvas id="pieCanvasMayor" class="pie-canvas"></canvas>
                 </div>
                 <p>Mayor: <span id="ampMayorVal">0</span>°</p>
             </div>
-            <!-- Amplitud Menor (Donut Chart) y Oscilaciones -->
+            <!-- Amplitud Menor (Pie chart) + Oscilaciones -->
             <div class="panel">
                 <h3>Amplitud Menor</h3>
-                <div class="donut-container">
-                    <canvas id="donutCanvasMenor" class="donut-canvas"></canvas>
+                <div class="pie-container">
+                    <canvas id="pieCanvasMenor" class="pie-canvas"></canvas>
                 </div>
-                <p>Menor: <span id="ampMenorDonutVal">0</span>°</p>
+                <p>Menor: <span id="ampMenorVal">0</span>°</p>
                 <p>Oscilaciones: <span id="oscilacionesVal">0</span></p>
             </div>
         </div>
@@ -171,7 +178,7 @@
     </footer>
 
     <script>
-    // Gauge para velocidad (máx 80 rpm)
+    // Gauges de Velocidad y Tiempo (ProgressBar.js)
     let speedGauge = new ProgressBar.Circle('#speedGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-speed-color').trim() || '#FF5A5F',
       strokeWidth: 8,
@@ -187,7 +194,6 @@
       }
     });
 
-    // Gauge para tiempo restante
     let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-time-color').trim() || '#FFC45F',
       strokeWidth: 8,
@@ -203,12 +209,12 @@
       }
     });
 
-    // Inicializar Donut Chart para Amplitud Mayor
-    let donutChartMayor;
-    function createDonutChartMayor() {
-      const ctxMayor = document.getElementById('donutCanvasMayor').getContext('2d');
-      donutChartMayor = new Chart(ctxMayor, {
-        type: 'doughnut',
+    // Crear Pie charts para amplitud mayor y menor
+    let pieChartMayor, pieChartMenor;
+    function createPieCharts() {
+      const ctxMayor = document.getElementById('pieCanvasMayor').getContext('2d');
+      pieChartMayor = new Chart(ctxMayor, {
+        type: 'pie',
         data: {
           labels: ['Ángulo', 'Resto'],
           datasets: [{
@@ -218,22 +224,19 @@
           }]
         },
         options: {
-          cutout: '70%',
           responsive: true,
-          plugins: { legend: { display: false }, tooltip: { enabled: false } },
-          rotation: -90,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+          },
+          rotation: -90,  // Empieza en la parte superior
           circumference: 360
         }
       });
-    }
-    createDonutChartMayor();
 
-    // Inicializar Donut Chart para Amplitud Menor
-    let donutChartMenor;
-    function createDonutChartMenor() {
-      const ctxMenor = document.getElementById('donutCanvasMenor').getContext('2d');
-      donutChartMenor = new Chart(ctxMenor, {
-        type: 'doughnut',
+      const ctxMenor = document.getElementById('pieCanvasMenor').getContext('2d');
+      pieChartMenor = new Chart(ctxMenor, {
+        type: 'pie',
         data: {
           labels: ['Ángulo', 'Resto'],
           datasets: [{
@@ -243,21 +246,24 @@
           }]
         },
         options: {
-          cutout: '70%',
           responsive: true,
-          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+          },
           rotation: -90,
           circumference: 360
         }
       });
     }
-    createDonutChartMenor();
+    createPieCharts();
 
+    // Función que se llama cada 5s para actualizar
     async function updateLCShakerData() {
       try {
         const resp = await fetch('{{ url_for("device_lc_shaker_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // Se espera: { timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states }
+        // Esperamos { timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states }
         const lastIndex = data.speeds.length - 1;
         if (lastIndex < 0) {
           console.log("No hay datos en measurements_lc_shaker.");
@@ -271,20 +277,20 @@
         let currentMaxTime = data.max_times[lastIndex] || 60;
         let currentState   = data.states[lastIndex] || "idle";
 
-        // Actualizar gauge de velocidad
+        // Gauge Velocidad
         let ratioSpeed = currentSpeed / 80;
         if (ratioSpeed > 1) ratioSpeed = 1;
         speedGauge.animate(ratioSpeed, { duration: 500 });
         document.getElementById('speedGaugeText').textContent = currentSpeed.toFixed(0) + " rpm";
 
-        // Actualizar gauge de tiempo
+        // Gauge Tiempo
         let ratioTime = currentTime / currentMaxTime;
         if (ratioTime > 1) ratioTime = 1;
         timeGauge.animate(ratioTime, { duration: 500 });
         document.getElementById('timeGaugeText').textContent = currentTime + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
 
-        // Actualizar estado en el círculo
+        // Estado
         const stateCircle = document.getElementById('stateCircle');
         stateCircle.textContent = currentState;
         switch(currentState) {
@@ -304,17 +310,17 @@
             stateCircle.style.backgroundColor = "#B0B0B0";
         }
 
-        // Actualizar Donut para Amplitud Mayor
-        donutChartMayor.data.datasets[0].data = [currentAmpM, 360 - currentAmpM];
-        donutChartMayor.update();
+        // Amplitud Mayor (Pie chart)
+        pieChartMayor.data.datasets[0].data = [currentAmpM, 360 - currentAmpM];
+        pieChartMayor.update();
         document.getElementById('ampMayorVal').textContent = currentAmpM.toFixed(1);
 
-        // Actualizar Donut para Amplitud Menor
-        donutChartMenor.data.datasets[0].data = [currentAmpm, 360 - currentAmpm];
-        donutChartMenor.update();
-        document.getElementById('ampMenorDonutVal').textContent = currentAmpm.toFixed(1);
+        // Amplitud Menor (Pie chart)
+        pieChartMenor.data.datasets[0].data = [currentAmpm, 360 - currentAmpm];
+        pieChartMenor.update();
+        document.getElementById('ampMenorVal').textContent = currentAmpm.toFixed(1);
 
-        // Actualizar oscilaciones
+        // Oscilaciones
         document.getElementById('oscilacionesVal').textContent = currentOsc;
       } catch (err) {
         console.error("Error al actualizar lc_shaker:", err);
