@@ -52,7 +52,7 @@ void loop() {
   client.loop();
 
   static unsigned long lastPublish = 0;
-  if (millis() - lastPublish > 5000) {
+  if (millis() - lastPublish > 1000) {
     lastPublish = millis();
     
     // Simulación de valores con sin()
