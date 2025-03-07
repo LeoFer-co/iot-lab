@@ -6,7 +6,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Incluimos ProgressBar.js para los gauges -->
+    <!-- ProgressBar.js para los gauges -->
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
     <style>
         :root {
@@ -15,6 +15,8 @@
             --card-border: #424F5B;
             --accent: #D07B2C;
             --text-color: #F0F0F0;
+            --gauge-speed-color: #FF5A5F;
+            --gauge-time-color: #FFC45F;
         }
 
         body {
@@ -80,10 +82,43 @@
             text-align: center;
             width: 100px;
         }
+        /* Círculo para el estado actual, mismo tamaño que los gauges */
+        .state-circle {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #FFF;
+            text-align: center;
+        }
+        /* Canvas para dibujar la "V" de amplitud */
+        #vCanvas {
+            width: 200px;
+            height: 200px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            margin: 0 auto;
+            display: block;
+        }
+
+        .info-text {
+            font-size: 1rem;
+            margin-top: 10px;
+        }
 
         a {
             color: #5FC3E4;
             text-decoration: none;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px 0;
+            color: var(--text-color);
         }
     </style>
 </head>
@@ -105,21 +140,25 @@
                 <div class="gauge-container" id="timeGaugeContainer">
                     <div id="timeGaugeText" class="gauge-text">0 s</div>
                 </div>
-                <p style="margin-top:10px; font-size:0.9rem;" id="maxTimeLabel">max: 0 s</p>
+                <div class="info-text" id="maxTimeLabel">max: 0 s</div>
             </div>
-            <!-- Estado y Oscilaciones -->
+            <!-- Estado -->
             <div class="panel">
                 <h3>Estado</h3>
-                <p id="shakerState">idle</p>
-                <p id="oscilacionesInfo">Osc: 0</p>
+                <div id="stateCircle" class="state-circle">idle</div>
             </div>
         </div>
         <div class="panel-row">
-            <!-- Amplitud -->
+            <!-- Panel para amplitud y oscilaciones -->
             <div class="panel">
                 <h3>Amplitud</h3>
-                <p>Mayor: <span id="ampMayorVal">0</span>°</p>
-                <p>Menor: <span id="ampMenorVal">0</span>°</p>
+                <!-- Canvas para representar la "V" -->
+                <canvas id="vCanvas"></canvas>
+                <div class="info-text">
+                    Mayor: <span id="ampMayorVal">0</span>°<br>
+                    Menor: <span id="ampMenorVal">0</span>°
+                </div>
+                <div class="info-text" id="oscilacionesInfo">Osc: 0</div>
             </div>
         </div>
     </div>
@@ -127,6 +166,10 @@
     <div style="text-align:center; margin-top:20px;">
         <a href="{{ url_for('home') }}">Volver</a>
     </div>
+
+    <footer>
+        2025 - LC Projects
+    </footer>
 
     <script>
     // Gauge para velocidad (máx 80 rpm)
@@ -161,24 +204,62 @@
       }
     });
 
+    // Función para dibujar la "V" que representa las amplitudes
+    function drawV(ampMayor, ampMenor) {
+      const canvas = document.getElementById('vCanvas');
+      const ctx = canvas.getContext('2d');
+      // Limpiar canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Parámetros de la V
+      const centerX = canvas.width / 2;
+      const topY = 20;
+      const bottomY = canvas.height - 20;
+      // Definimos un rango máximo para la amplitud visual (por ejemplo, 60°)
+      const maxAngle = 60;
+      // Calcula un factor para transformar el ángulo en desplazamiento horizontal (ajústalo si es necesario)
+      const factor = 1.5;  // Factor de escala
+      let offsetMayor = (ampMayor / maxAngle) * factor * (canvas.width / 2);
+      let offsetMenor = (ampMenor / maxAngle) * factor * (canvas.width / 2);
+
+      // Dibujar la línea central vertical (opcional)
+      ctx.strokeStyle = "#5FC3E4";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX, topY);
+      ctx.lineTo(centerX, bottomY);
+      ctx.stroke();
+
+      // Dibujar la línea izquierda (para amplitud mayor)
+      ctx.beginPath();
+      ctx.moveTo(centerX, topY);
+      ctx.lineTo(centerX - offsetMayor, bottomY);
+      ctx.stroke();
+
+      // Dibujar la línea derecha (para amplitud menor)
+      ctx.beginPath();
+      ctx.moveTo(centerX, topY);
+      ctx.lineTo(centerX + offsetMenor, bottomY);
+      ctx.stroke();
+    }
+
     async function updateLCShakerData() {
       try {
         const resp = await fetch('{{ url_for("device_lc_shaker_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // Se espera que data tenga:
-        // { timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states }
+        // Se espera que data tenga: { timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states }
         const lastIndex = data.speeds.length - 1;
         if (lastIndex < 0) {
           console.log("No hay datos en measurements_lc_shaker.");
           return;
         }
-        let currentSpeed = data.speeds[lastIndex] || 0;
-        let currentAmpM  = data.amp_mayors[lastIndex] || 0;
-        let currentAmpm  = data.amp_menors[lastIndex] || 0;
-        let currentOsc   = data.oscs[lastIndex] || 0;
-        let currentTime  = data.time_lefts[lastIndex] || 0;
+        let currentSpeed   = data.speeds[lastIndex] || 0;
+        let currentAmpM    = data.amp_mayors[lastIndex] || 0;
+        let currentAmpm    = data.amp_menors[lastIndex] || 0;
+        let currentOsc     = data.oscs[lastIndex] || 0;
+        let currentTime    = data.time_lefts[lastIndex] || 0;
         let currentMaxTime = data.max_times[lastIndex] || 60;
-        let currentState = data.states[lastIndex] || "idle";
+        let currentState   = data.states[lastIndex] || "idle";
 
         // Actualizar gauge de velocidad
         let ratioSpeed = currentSpeed / 80;
@@ -193,13 +274,35 @@
         document.getElementById('timeGaugeText').textContent = currentTime + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
 
-        // Actualizar estado y oscilaciones
-        document.getElementById('shakerState').textContent = currentState;
-        document.getElementById('oscilacionesInfo').textContent = "Osc: " + currentOsc;
+        // Actualizar estado en el círculo
+        const stateCircle = document.getElementById('stateCircle');
+        stateCircle.textContent = currentState;
+        switch(currentState) {
+          case "agitando":
+            stateCircle.style.backgroundColor = "#FF5A5F";
+            break;
+          case "seteando":
+            stateCircle.style.backgroundColor = "#FFD35F";
+            break;
+          case "idle":
+            stateCircle.style.backgroundColor = "#B0B0B0";
+            break;
+          case "finalizado":
+            stateCircle.style.backgroundColor = "#5FC3E4";
+            break;
+          default:
+            stateCircle.style.backgroundColor = "#B0B0B0";
+        }
 
         // Actualizar amplitudes
         document.getElementById('ampMayorVal').textContent = currentAmpM.toFixed(1);
         document.getElementById('ampMenorVal').textContent = currentAmpm.toFixed(1);
+
+        // Actualizar oscilaciones
+        document.getElementById('oscilacionesInfo').textContent = "Osc: " + currentOsc;
+
+        // Dibujar la V con los ángulos
+        drawV(currentAmpM, currentAmpm);
       } catch (err) {
         console.error("Error al actualizar lc_shaker:", err);
       }
