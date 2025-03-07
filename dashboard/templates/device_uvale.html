@@ -65,7 +65,6 @@
                 color: var(--accent);
                 font-size: 1.1rem;
             }
-
         /* Círculo para el estado actual (150x150) */
         .state-circle {
             width: 150px;
@@ -79,14 +78,14 @@
             color: #FFF;
             text-align: center;
         }
-
         /* Barra vertical para la distancia (0..25 cm) */
         .vertical-bar-container {
-            width: 30px;
-            height: 150px;
+            width: 150px; /* Horizontal dimension (rotaremos) */
+            height: 30px; /* Grosor de la barra */
             margin: 0 auto;
             position: relative;
-            transform: rotate(180deg); /* Para que el 0% quede abajo y el 100% arriba */
+            /* Rotamos 90° y luego invertimos el eje Y para que 0% esté abajo */
+            transform: rotate(90deg) scaleY(-1);
         }
 
         .vertical-bar-text {
@@ -118,6 +117,13 @@
             width: 300px;
             height: 200px;
             margin: 0 auto;
+        }
+        /* Indicadores circulares para puerta y UV */
+        .indicator {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin: 0 auto 5px auto;
         }
 
         a {
@@ -164,10 +170,12 @@
         <div class="panel-row">
             <div class="panel">
                 <h3>Puerta</h3>
+                <div id="doorIndicator" class="indicator" style="background-color:#B0B0B0;"></div>
                 <p id="doorState">--</p>
             </div>
             <div class="panel">
                 <h3>Luz UV</h3>
+                <div id="uvIndicator" class="indicator" style="background-color:#B0B0B0;"></div>
                 <p id="uvState">--</p>
             </div>
         </div>
@@ -175,7 +183,7 @@
         <!-- Fila 3: Gráficas de Humedad y Temperatura -->
         <div class="panel-row">
             <div class="panel">
-                <h3>(%)</h3> <!-- Etiqueta Y: solo "(%)" -->
+                <h3>(%)</h3> <!-- Eje Y: solo "(%)" -->
                 <div class="chart-container">
                     <canvas id="humChart"></canvas>
                 </div>
@@ -231,7 +239,7 @@
       }
     });
 
-    // 3) Gráfica de Humedad (solo "HH:MM" en eje X)
+    // 3) Gráfica de Humedad
     let humChart = new Chart(document.getElementById('humChart').getContext('2d'), {
       type: 'line',
       data: {
@@ -253,7 +261,8 @@
               color: "#FFFFFF",
               callback: function(value, index, ticks) {
                 let label = this.getLabelForValue(value);
-                return label.substring(11,16); // HH:MM
+                // Muestra HH:MM
+                return label.substring(11,16);
               },
               maxTicksLimit: 6
             },
@@ -311,7 +320,6 @@
         const resp = await fetch('{{ url_for("device_uvale_data", device_name=device.device_name) }}');
         const data = await resp.json();
         // data => { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps }
-
         if (data.error) {
           // Sin datos
           document.getElementById('distanceBarText').textContent = "-- cm";
@@ -364,22 +372,22 @@
         tempChart.data.datasets[0].data = temp;
         tempChart.update();
 
-        // Puerta (abierto=rojo peligro, cerrado=azul seguro)
+        // Puerta (abierto => rojo, cerrado => azul)
+        let doorIndicator = document.getElementById('doorIndicator');
         document.getElementById('doorState').textContent = door_state;
         if (door_state.toLowerCase().includes("abierto")) {
-          // Peligro
-          document.getElementById('doorState').style.color = "#FF5A5F";
+          doorIndicator.style.backgroundColor = "#FF5A5F";  // rojo peligro
         } else {
-          // Seguro
-          document.getElementById('doorState').style.color = "#5FC3E4";
+          doorIndicator.style.backgroundColor = "#5FC3E4";  // azul seguro
         }
 
-        // Luz UV (encendido=rojo, apagado=gris/azul)
+        // Luz UV (encendido => rojo, apagado => gris/azul)
+        let uvIndicator = document.getElementById('uvIndicator');
         document.getElementById('uvState').textContent = uv_state;
         if (uv_state.toLowerCase().includes("encendido") || uv_state.toLowerCase().includes("on")) {
-          document.getElementById('uvState').style.color = "#FF5A5F";
+          uvIndicator.style.backgroundColor = "#FF5A5F";
         } else {
-          document.getElementById('uvState').style.color = "#B0B0B0";
+          uvIndicator.style.backgroundColor = "#B0B0B0";
         }
 
         // Estado Actual (círculo)
