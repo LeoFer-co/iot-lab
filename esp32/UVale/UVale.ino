@@ -152,6 +152,11 @@ void loop() {
 }
 
 void publishData() {
+  // Simular la variación lenta de temp y hum usando una función seno
+  float angle = (millis() / 1000.0) * (PI / 100); // Avance lento (ciclo completo ~200 seg)
+  temp = 25.0 + 5.0 * sin(angle);
+  hum = 50.0 + 10.0 * sin(angle + 1);
+
   char payload[256];
   snprintf(payload, sizeof(payload),
     "{\"device_name\":\"uvale\",\"distance\":%.2f,\"time_left\":%d,\"max_time\":%d,\"door_state\":\"%s\",\"uv_state\":\"%s\",\"hum\":%.2f,\"temp\":%.2f,\"status\":\"%s\"}",
