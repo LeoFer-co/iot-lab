@@ -126,7 +126,7 @@ def device_detail(device_name):
         cursor.execute("SELECT * FROM measurements_lc_shaker ORDER BY id DESC LIMIT 30")
         rows = cursor.fetchall()
         conn.close()
-        // Se espera que el lc_shaker envíe: speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state
+        # Se espera que el lc_shaker envíe: speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state
         let_timestamps = []
         let_speeds = []
         let_amp_mayor = []
