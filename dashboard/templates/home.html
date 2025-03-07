@@ -143,47 +143,41 @@
         <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" class="logo" />
         <h2 class="header-title">LC Projects - Dispositivos</h2>
     </header>
-
     <main>
         <h1>Dispositivos en la red</h1>
         <div class="device-grid" id="deviceGrid"></div>
     </main>
-
     <footer>
         2025 - LC Projects
     </footer>
-
     <script>
         const deviceGrid = document.getElementById('deviceGrid');
 
-        // Crea la tarjeta para un dispositivo
+        // Función para crear una tarjeta (si no existe)
         function buildDeviceCard(dev) {
-            let cardDiv = document.createElement('div');
+            const cardDiv = document.createElement('div');
             cardDiv.classList.add('device-card');
-            cardDiv.dataset.id = dev.device_name; // Identificador para guardar orden
+            cardDiv.dataset.id = dev.device_name; // Guardamos el ID del dispositivo
 
-            if (dev.status_final === "Desconectado") {
-                cardDiv.classList.add('offline-card');
-            }
-            let h3 = document.createElement('h3');
+            const h3 = document.createElement('h3');
             h3.textContent = dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
             cardDiv.appendChild(h3);
 
-            let pTipo = document.createElement('p');
+            const pTipo = document.createElement('p');
             pTipo.textContent = "Tipo: " + dev.device_type;
             cardDiv.appendChild(pTipo);
 
-            let pEstado = document.createElement('p');
+            const pEstado = document.createElement('p');
             pEstado.textContent = "Estado: " + dev.status_final;
             cardDiv.appendChild(pEstado);
 
             if (dev.status_final === "Desconectado") {
-                let aDisabled = document.createElement('a');
+                const aDisabled = document.createElement('a');
                 aDisabled.classList.add('disabled');
                 aDisabled.textContent = "Ver Detalles";
                 cardDiv.appendChild(aDisabled);
             } else {
-                let aLink = document.createElement('a');
+                const aLink = document.createElement('a');
                 aLink.href = "/device/" + dev.device_name;
                 aLink.textContent = "Ver Detalles";
                 cardDiv.appendChild(aLink);
@@ -191,51 +185,93 @@
             return cardDiv;
         }
 
-        // Renderiza las tarjetas en deviceGrid
-        function renderDevices(devices) {
-            deviceGrid.innerHTML = "";
-            devices.forEach(dev => {
-                let card = buildDeviceCard(dev);
-                deviceGrid.appendChild(card);
-            });
-        }
-
-        // Descarga la lista de dispositivos ordenada desde el backend
+        // Función para actualizar (merge) el contenido de las tarjetas existentes
         async function updateDevices() {
             try {
                 const resp = await fetch("/devices_data");
                 const devices = await resp.json();
-                renderDevices(devices);
+
+                // Crear un mapa de dispositivos de la respuesta para buscar por device_name
+                const devicesMap = {};
+                devices.forEach(dev => { devicesMap[dev.device_name] = dev; });
+
+                // Recorrer las tarjetas existentes y actualizar su contenido si corresponde
+                const existingCards = Array.from(deviceGrid.children);
+                const processed = new Set();
+                existingCards.forEach(card => {
+                    const id = card.dataset.id;
+                    if (devicesMap[id]) {
+                        // Actualizamos contenido
+                        card.querySelector('h3').textContent = id.charAt(0).toUpperCase() + id.slice(1);
+                        const ps = card.querySelectorAll('p');
+                        if (ps.length >= 2) {
+                            ps[0].textContent = "Tipo: " + devicesMap[id].device_type;
+                            ps[1].textContent = "Estado: " + devicesMap[id].status_final;
+                        }
+                        // Actualizamos el link si existe
+                        const a = card.querySelector('a');
+                        if (devicesMap[id].status_final === "Desconectado") {
+                            if (a) {
+                                a.classList.add('disabled');
+                                a.textContent = "Ver Detalles";
+                            }
+                        } else {
+                            if (a) {
+                                a.classList.remove('disabled');
+                                a.href = "/device/" + id;
+                                a.textContent = "Ver Detalles";
+                            }
+                        }
+                        processed.add(id);
+                    }
+                });
+
+                // Para los dispositivos nuevos (no existentes), crear la tarjeta
+                devices.forEach(dev => {
+                    if (!processed.has(dev.device_name)) {
+                        const card = buildDeviceCard(dev);
+                        deviceGrid.appendChild(card);
+                    }
+                });
+
+                // Reordenar las tarjetas en el DOM según el orden recibido
+                // (Suponemos que la respuesta "devices" está en el orden correcto)
+                devices.forEach(dev => {
+                    const card = document.querySelector(`.device-card[data-id="${dev.device_name}"]`);
+                    if (card) {
+                        deviceGrid.appendChild(card);
+                    }
+                });
             } catch (err) {
                 console.error("Error al actualizar dispositivos:", err);
             }
         }
 
-        // Llamamos cada 5s para actualizar el contenido (el orden lo gestiona el backend)
+        // Actualizamos cada 5 segundos, pero sin borrar el DOM completo
         setInterval(updateDevices, 5000);
         updateDevices();
 
         // Activamos drag & drop con SortableJS y guardamos el nuevo orden en el backend
         new Sortable(deviceGrid, {
             animation: 300,
-            easing: "cubic-bezier(0.25, 0.8, 0.5, 1)", // animación suave
+            easing: "cubic-bezier(0.25, 0.8, 0.5, 1)",
             ghostClass: 'sortable-ghost',
             delay: 150,             // 0.15s en pantallas táctiles
             delayOnTouchOnly: true,
             onChoose: function (evt) {
-                evt.item.style.backgroundColor = "#A4E09F"; // color verde claro
+                evt.item.style.backgroundColor = "#A4E09F"; // color verde claro al arrastrar
             },
             onUnchoose: function (evt) {
                 evt.item.style.backgroundColor = "";
             },
             onEnd: async function (evt) {
                 evt.item.style.backgroundColor = "";
-                // Recolectamos el nuevo orden
+                // Recolectamos el nuevo orden (basado en los dataset.id)
                 let newOrder = [];
                 deviceGrid.childNodes.forEach(card => {
                     newOrder.push(card.dataset.id);
                 });
-                // Enviamos al backend para guardar el orden
+                // Enviamos el nuevo orden al backend para guardarlo
                 try {
                     await fetch("/api/save_order", {
                         method: "POST",
