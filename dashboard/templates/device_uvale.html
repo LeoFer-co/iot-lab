@@ -5,7 +5,8 @@
     <title>{{ device.device_name|capitalize }} - UV ale</title>
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Cargamos Chart.js y ProgressBar.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
     <style>
@@ -15,6 +16,7 @@
             --card-border: #424F5B;
             --accent: #D07B2C;
             --text-color: #F0F0F0;
+            --text-secondary: #B0B0B0;
         }
 
         body {
@@ -67,6 +69,12 @@
             flex: 1 1 250px;
         }
 
+            .panel h3 {
+                margin-bottom: 10px;
+                color: var(--accent);
+                font-size: 1.1rem;
+            }
+
         .gauge-container {
             width: 150px;
             height: 150px;
@@ -84,7 +92,20 @@
             text-align: center;
             width: 100px;
         }
-
+        /* Círculo para el estado actual */
+        .state-circle {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #FFF;
+            text-align: center;
+        }
+        /* Contenedores para gráficos */
         .chart-container {
             width: 300px;
             height: 200px;
@@ -94,6 +115,11 @@
         a {
             color: #5FC3E4;
             text-decoration: none;
+            font-size: 1.1rem;
+        }
+
+        footer {
+            color: var(--text-secondary);
         }
     </style>
 </head>
@@ -104,29 +130,43 @@
     </header>
 
     <div class="dashboard-container">
+        <!-- Primera fila: Indicadores generales -->
         <div class="panel-row">
-            <!-- Panel: Distancia -->
+            <!-- Distancia -->
             <div class="panel">
                 <h3>Distancia (cm)</h3>
                 <div class="gauge-container" id="distanceGaugeContainer">
                     <div id="distanceGaugeText" class="gauge-text">0 cm</div>
                 </div>
             </div>
-            <!-- Panel: Tiempo de Operación -->
+            <!-- Tiempo de Operación -->
             <div class="panel">
                 <h3>Tiempo de Operación</h3>
                 <div class="gauge-container" id="opTimeGaugeContainer">
                     <div id="opTimeGaugeText" class="gauge-text">0 s</div>
                 </div>
+                <p style="margin-top:10px;font-size:0.9rem;" id="maxTimeLabel">max: 0 s</p>
             </div>
-            <!-- Panel: Puerta y Luz UV -->
+            <!-- Estado Actual (círculo) -->
             <div class="panel">
-                <h3>Puerta / Luz UV</h3>
-                <p>Puerta: <span id="doorState">--</span></p>
-                <p>Luz UV: <span id="uvState">--</span></p>
+                <h3>Estado Actual</h3>
+                <div id="stateCircle" class="state-circle">--</div>
             </div>
         </div>
 
+        <!-- Segunda fila: Puerta y Luz UV -->
+        <div class="panel-row">
+            <div class="panel">
+                <h3>Puerta</h3>
+                <p id="doorState">--</p>
+            </div>
+            <div class="panel">
+                <h3>Luz UV</h3>
+                <p id="uvState">--</p>
+            </div>
+        </div>
+
+        <!-- Tercera fila: Gráficos -->
         <div class="panel-row">
             <!-- Gráfico de Humedad -->
             <div class="panel">
@@ -143,11 +183,11 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="panel">
-            <h3>Estado Actual</h3>
-            <p id="uvStatus">--</p>
-        </div>
+    <!-- Botón para Volver -->
+    <div style="text-align:center; margin-top:20px;">
+        <a href="{{ url_for('home') }}">Volver</a>
     </div>
 
     <footer>
@@ -155,7 +195,7 @@
     </footer>
 
     <script>
-    // Gauge para Distancia (suponiendo un rango de 0 a 100 cm)
+    // Gauge para Distancia (asumiendo rango 0-100 cm)
     let distanceGauge = new ProgressBar.Circle('#distanceGaugeContainer', {
       color: '#5FC3E4',
       strokeWidth: 8,
@@ -187,39 +227,79 @@
       }
     });
 
-    // Gráficos de Humedad y Temperatura
+    // Gráficos de línea para Humedad y Temperatura
     let humChart = new Chart(document.getElementById('humChart').getContext('2d'), {
       type: 'line',
-      data: { labels: [], datasets: [{ label: 'Humedad (%)', data: [], borderColor: '#5FC3E4', fill: false, tension: 0.1 }] },
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Humedad (%)',
+          data: [],
+          borderColor: '#5FC3E4',
+          fill: false,
+          tension: 0.1
+        }]
+      },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: { x: { ticks: { color: "#FFFFFF" }, title: { display: true, text: 'Hora', color: "#FFFFFF" } },
-                  y: { ticks: { color: "#FFFFFF" }, title: { display: true, text: 'Humedad (%)', color: "#FFFFFF" } } },
+        scales: {
+          x: { ticks: { color: "#FFFFFF" }, title: { display: true, text: 'Hora', color: "#FFFFFF" } },
+          y: { ticks: { color: "#FFFFFF" }, title: { display: true, text: 'Humedad (%)', color: "#FFFFFF" } }
+        },
         plugins: { legend: { labels: { color: "#FFFFFF" } } }
       }
     });
     let tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), {
       type: 'line',
-      data: { labels: [], datasets: [{ label: 'Temperatura (°C)', data: [], borderColor: '#FF5A5F', fill: false, tension: 0.1 }] },
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Temperatura (°C)',
+          data: [],
+          borderColor: '#FF5A5F',
+          fill: false,
+          tension: 0.1
+        }]
+      },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: { x: { ticks: { color: "#FFFFFF", callback: function(value, index, ticks) {
-                    let label = this.getLabelForValue(value);
-                    return label.substring(11,16);
-                  }, maxTicksLimit: 6 }, title: { display: true, text: 'Hora', color: "#FFFFFF" } },
-                  y: { ticks: { color: "#FFFFFF" }, title: { display: true, text: '°C', color: "#FFFFFF" } } },
+        scales: {
+          x: {
+            ticks: {
+              color: "#FFFFFF",
+              callback: function(value, index, ticks) {
+                let label = this.getLabelForValue(value);
+                return label.substring(11,16);
+              },
+              maxTicksLimit: 6
+            },
+            title: { display: true, text: 'Hora', color: "#FFFFFF" }
+          },
+          y: { ticks: { color: "#FFFFFF" }, title: { display: true, text: '°C', color: "#FFFFFF" } }
+        },
         plugins: { legend: { labels: { color: "#FFFFFF" } } }
       }
     });
 
+    // Función para actualizar datos
     async function updateuvaleData() {
       try {
         const resp = await fetch('{{ url_for("device_uvale_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // data esperado: { distance, time_left, max_time, door_state, uv_state, hums, temps, timestamps, status }
-        const { distance, time_left, max_time, door_state, uv_state, hums, temps, timestamps, status } = data;
+        // Se espera que data tenga:
+        // { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps }
+        if (data.error) {
+          document.getElementById('distanceGaugeText').textContent = "-- cm";
+          document.getElementById('opTimeGaugeText').textContent = "0 s";
+          document.getElementById('maxTimeLabel').textContent = "max: 0 s";
+          document.getElementById('doorState').textContent = "--";
+          document.getElementById('uvState').textContent = "--";
+          document.getElementById('uvStatus').textContent = "Desconectado";
+          return;
+        }
+        const { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps } = data;
 
         // Actualizar gauge de distancia
         let ratioDistance = distance / 100;
@@ -232,20 +312,23 @@
         if (ratioOpTime > 1) ratioOpTime = 1;
         opTimeGauge.animate(ratioOpTime, { duration: 500 });
         document.getElementById('opTimeGaugeText').textContent = time_left + " s";
+        document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
 
-        // Actualizar gráficos
+        // Actualizar gráficos de Humedad y Temperatura
         humChart.data.labels = timestamps;
-        humChart.data.datasets[0].data = hums;
+        humChart.data.datasets[0].data = hum;
         humChart.update();
 
         tempChart.data.labels = timestamps;
-        tempChart.data.datasets[0].data = temps;
+        tempChart.data.datasets[0].data = temp;
         tempChart.update();
 
-        // Actualizar indicadores de puerta y UV
+        // Actualizar indicadores de Puerta y Luz UV
         document.getElementById('doorState').textContent = door_state;
         document.getElementById('uvState').textContent = uv_state;
-        // Actualizar estado
+
+        // Actualizar estado (agregar círculo similar a otros dispositivos)
+        // Se actualizará en el panel "Estado Actual"
         document.getElementById('uvStatus').textContent = status;
       } catch (err) {
         console.error("Error al actualizar datos de UV ale:", err);
@@ -255,5 +338,13 @@
     setInterval(updateuvaleData, 5000);
     updateuvaleData();
     </script>
+
+    <!-- Agregamos un bloque para los indicadores separados de Puerta y Luz UV -->
+    <script>
+        // Si no están definidos en el HTML actual, puedes agregar elementos para Puerta, Luz UV y Estado.
+        // Por ejemplo, si en tu plantilla original no tienes estos IDs, asegúrate de agregarlos.
+        // En este ejemplo, se asume que "doorState", "uvState" y "uvStatus" ya existen.
+    </script>
+
 </body>
 </html>
