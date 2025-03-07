@@ -78,22 +78,22 @@
             color: #FFF;
             text-align: center;
         }
-        /* Contenedor fijo para la barra vertical */
+        /* Contenedor para la barra vertical */
         .vertical-bar-wrapper {
-            width: 150px; /* suficiente ancho para la barra rotada */
-            height: 120px; /* espacio vertical fijo */
-            margin: 0 auto;
+            width: 30px; /* grosor de la barra */
+            height: 150px; /* altura total */
+            margin: 0 auto; /* centrado */
             position: relative;
-            overflow: hidden; /* oculta cualquier exceso */
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            overflow: visible; /* se ve toda la barra */
         }
-        /* Barra horizontal que rotamos 270° para que crezca de abajo a arriba */
+        /* Barra horizontal rotada para crecer de abajo hacia arriba */
         .vertical-bar-container {
-            width: 150px; /* ancho real de la barra antes de rotar */
-            height: 30px; /* grosor de la barra */
-            transform: rotate(270deg);
+            width: 150px; /* largo total = 150px, coincide con la altura real */
+            height: 30px; /* grosor = 30px */
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%) rotate(270deg);
             transform-origin: center center;
         }
 
@@ -121,10 +121,10 @@
             text-align: center;
             width: 100px;
         }
-
+        /* Aumentamos el tamaño de las gráficas */
         .chart-container {
-            width: 300px;
-            height: 200px;
+            width: 400px; /* más ancho */
+            height: 250px; /* más alto */
             margin: 0 auto;
         }
 
@@ -162,7 +162,6 @@
                 </div>
                 <div class="vertical-bar-text" id="distanceBarText">0 cm</div>
             </div>
-
             <!-- Tiempo de Operación (gauge circular) -->
             <div class="panel">
                 <h3>Tiempo de Operación</h3>
@@ -171,7 +170,6 @@
                 </div>
                 <p style="margin-top:10px;font-size:0.9rem;" id="maxTimeLabel">max: 0 s</p>
             </div>
-
             <!-- Estado Actual (círculo) -->
             <div class="panel">
                 <h3>Estado Actual</h3>
@@ -196,7 +194,7 @@
         <!-- Fila 3: Gráficas de Humedad y Temperatura -->
         <div class="panel-row">
             <div class="panel">
-                <h3>(%)</h3> <!-- Eje Y: solo "(%)" -->
+                <h3>(%)</h3>
                 <div class="chart-container">
                     <canvas id="humChart"></canvas>
                 </div>
@@ -220,14 +218,13 @@
     </footer>
 
     <script>
-    // 1) Barra horizontal (Line) para Distancia (0..25 cm), rotada 270°
-    //  -> Crece de abajo a arriba con color
+    // Barra horizontal (Line) para Distancia (0..25 cm), rotada 270° => crece de abajo a arriba
     let distanceBar = new ProgressBar.Line('#distanceBarContainer', {
       strokeWidth: 8,
       easing: 'easeInOut',
       duration: 500,
-      color: '#5FC3E4',       // color de la porción que crece
-      trailColor: '#2A333B',  // color de fondo
+      color: '#5FC3E4',
+      trailColor: '#2A333B',
       trailWidth: 8,
       svgStyle: { width: '100%', height: '100%' },
       from: { color: '#5FC3E4' },
@@ -237,7 +234,7 @@
       }
     });
 
-    // 2) Gauge circular para Tiempo de Operación
+    // Gauge circular para Tiempo de Operación
     let opTimeGauge = new ProgressBar.Circle('#opTimeGaugeContainer', {
       color: '#FF5A5F',
       strokeWidth: 8,
@@ -253,7 +250,7 @@
       }
     });
 
-    // 3) Gráfica de Humedad
+    // Gráfica de Humedad
     let humChart = new Chart(document.getElementById('humChart').getContext('2d'), {
       type: 'line',
       data: {
@@ -293,7 +290,7 @@
       }
     });
 
-    // 4) Gráfica de Temperatura
+    // Gráfica de Temperatura
     let tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), {
       type: 'line',
       data: {
@@ -332,14 +329,13 @@
       }
     });
 
-    // 5) Función de actualización
+    // Función de actualización
     async function updateuvaleData() {
       try {
         const resp = await fetch('{{ url_for("device_uvale_data", device_name=device.device_name) }}');
         const data = await resp.json();
         // data => { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps }
         if (data.error) {
-          // Sin datos
           document.getElementById('distanceBarText').textContent = "-- cm";
           distanceBar.animate(0);
           document.getElementById('opTimeGaugeText').textContent = "-- s";
@@ -381,7 +377,7 @@
         document.getElementById('opTimeGaugeText').textContent = time_left + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
 
-        // Actualizar gráficas
+        // Gráficas
         humChart.data.labels = timestamps;
         humChart.data.datasets[0].data = hum;
         humChart.update();
@@ -394,9 +390,9 @@
         let doorIndicator = document.getElementById('doorIndicator');
         document.getElementById('doorState').textContent = door_state;
         if (door_state.toLowerCase().includes("abierto")) {
-          doorIndicator.style.backgroundColor = "#FF5A5F";  // rojo
+          doorIndicator.style.backgroundColor = "#FF5A5F"; // rojo
         } else {
-          doorIndicator.style.backgroundColor = "#5FC3E4";  // azul
+          doorIndicator.style.backgroundColor = "#5FC3E4"; // azul
         }
 
         // Luz UV (encendido => rojo, apagado => gris)
