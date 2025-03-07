@@ -170,7 +170,7 @@
     </footer>
 
     <script>
-    // Gauges
+    // Gauge para velocidad (máx 80 rpm)
     let speedGauge = new ProgressBar.Circle('#speedGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-speed-color').trim() || '#FF5A5F',
       strokeWidth: 8,
@@ -186,6 +186,7 @@
       }
     });
 
+    // Gauge para tiempo restante
     let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-time-color').trim() || '#FFC45F',
       strokeWidth: 8,
@@ -201,46 +202,52 @@
       }
     });
 
-    // Dibuja una V orientada hacia arriba en un canvas
-    // angle: valor en grados (0-60 aprox)
-    // lineWidth: grosor de la línea
-    function drawUpwardV(canvasId, angle, lineWidth) {
+    /**
+     * Dibuja una V orientada hacia arriba en un canvas,
+     * con un ángulo total = angleDeg (grados).
+     * lineWidth: grosor de línea
+     * La longitud se ajusta para no salirse del recuadro.
+     */
+    function drawUpwardV(canvasId, angleDeg, lineWidth) {
       const canvas = document.getElementById(canvasId);
       const ctx = canvas.getContext('2d');
-      // Limpia
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // apex en bottom center
-      const margin = 20; // margen para que no toque bordes
+      // Apex en bottom center
+      const margin = 20;
       const centerX = canvas.width / 2;
       const bottomY = canvas.height - margin;
-      const topY = margin;
-      // define un maxAngle, por ejemplo 60
-      const maxAngle = 60;
+      // definimos la longitud de la línea (L) para que la V quepa
+      let L = canvas.height - 2 * margin;
+
+      // limitamos angleDeg a un rango razonable, ej. 0..120
+      if (angleDeg < 0) angleDeg = 0;
+      if (angleDeg > 120) angleDeg = 120;
+      let halfAngleRad = (angleDeg * Math.PI / 180) / 2;
+
       ctx.lineWidth = lineWidth;
       ctx.strokeStyle = "#5FC3E4";
 
-      // factor: para traducir el ángulo a offset horizontal
-      // si angle=60, offset = (canvas.width/2 - margin)
-      let offset = (angle / maxAngle) * ( (canvas.width/2) - margin );
-      if (offset < 0) offset = 0;
-      if (offset > (canvas.width/2 - margin)) {
-        offset = (canvas.width/2 - margin);
-      }
+      // Calculamos las coordenadas de los extremos
+      // La línea hace un ángulo 'angleDeg' total,
+      // => cada lado tiene halfAngleRad
+      // El offset horizontal es L * sin(halfAngleRad)
+      // El offset vertical es L * cos(halfAngleRad)
+      let leftX = centerX - (L * Math.sin(halfAngleRad));
+      let leftY = bottomY - (L * Math.cos(halfAngleRad));
+      let rightX = centerX + (L * Math.sin(halfAngleRad));
+      let rightY = bottomY - (L * Math.cos(halfAngleRad));
 
-      // apex es (centerX, bottomY)
-      // lineas suben a (centerX ± offset, topY)
-      // punta abajo, lineas hacia arriba
-      // linea izquierda
+      // Dibuja línea izquierda
       ctx.beginPath();
       ctx.moveTo(centerX, bottomY);
-      ctx.lineTo(centerX - offset, topY);
+      ctx.lineTo(leftX, leftY);
       ctx.stroke();
 
-      // linea derecha
+      // Dibuja línea derecha
       ctx.beginPath();
       ctx.moveTo(centerX, bottomY);
-      ctx.lineTo(centerX + offset, topY);
+      ctx.lineTo(rightX, rightY);
       ctx.stroke();
     }
 
@@ -248,12 +255,13 @@
       try {
         const resp = await fetch('{{ url_for("device_lc_shaker_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // { timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states }
+        // Se espera: { timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states }
         const lastIndex = data.speeds.length - 1;
         if (lastIndex < 0) {
           console.log("No hay datos en measurements_lc_shaker.");
           return;
         }
+
         let currentSpeed   = data.speeds[lastIndex] || 0;
         let currentAmpM    = data.amp_mayors[lastIndex] || 0;
         let currentAmpm    = data.amp_menors[lastIndex] || 0;
@@ -262,20 +270,20 @@
         let currentMaxTime = data.max_times[lastIndex] || 60;
         let currentState   = data.states[lastIndex] || "idle";
 
-        // Velocidad
+        // Gauge de velocidad
         let ratioSpeed = currentSpeed / 80;
         if (ratioSpeed > 1) ratioSpeed = 1;
         speedGauge.animate(ratioSpeed, { duration: 500 });
         document.getElementById('speedGaugeText').textContent = currentSpeed.toFixed(0) + " rpm";
 
-        // Tiempo
+        // Gauge de tiempo
         let ratioTime = currentTime / currentMaxTime;
         if (ratioTime > 1) ratioTime = 1;
         timeGauge.animate(ratioTime, { duration: 500 });
         document.getElementById('timeGaugeText').textContent = currentTime + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
 
-        // Estado en el círculo
+        // Estado en círculo
         const stateCircle = document.getElementById('stateCircle');
         stateCircle.textContent = currentState;
         switch(currentState) {
@@ -295,11 +303,11 @@
             stateCircle.style.backgroundColor = "#B0B0B0";
         }
 
-        // Amplitud mayor (línea más gruesa, p. ej. 6)
+        // Amplitud mayor (línea más gruesa)
         document.getElementById('ampMayorVal').textContent = currentAmpM.toFixed(1);
         drawUpwardV("vCanvasMayor", currentAmpM, 6);
 
-        // Amplitud menor (línea normal, p. ej. 4)
+        // Amplitud menor (línea normal)
         document.getElementById('ampMenorVal').textContent = currentAmpm.toFixed(1);
         drawUpwardV("vCanvasMenor", currentAmpm, 4);
 
