@@ -20,7 +20,7 @@ cursor.execute('''
   )
 ''')
 
-# Para Estación Meteorológica
+# Para EstaciÃ³n MeteorolÃ³gica
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_estacion (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,7 +31,7 @@ cursor.execute('''
   )
 ''')
 
-# Para Microdós
+# Para MicrodÃ³s
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_microdos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
