@@ -78,14 +78,15 @@
             color: #FFF;
             text-align: center;
         }
-        /* Barra vertical para la distancia (0..25 cm) */
+        /* Barra horizontal que rotamos para ver como vertical */
         .vertical-bar-container {
-            width: 150px; /* Horizontal dimension (rotaremos) */
+            width: 150px; /* Ancho real del bar (antes de rotar) */
             height: 30px; /* Grosor de la barra */
-            margin: 0 auto;
+            margin: 20px auto 0 auto; /* Centrada y con margen top para separarla del título */
             position: relative;
-            /* Rotamos 90° y luego invertimos el eje Y para que 0% esté abajo */
-            transform: rotate(90deg) scaleY(-1);
+            transform-origin: center center;
+            /* Rotamos -90° para que la barra crezca de abajo hacia arriba */
+            transform: rotate(-90deg);
         }
 
         .vertical-bar-text {
@@ -197,7 +198,7 @@
         </div>
     </div>
 
-    <!-- Botón para Volver -->
+    <!-- Botón Volver -->
     <div style="text-align:center; margin-top:20px;">
         <a href="{{ url_for('home') }}">Volver</a>
     </div>
@@ -207,7 +208,7 @@
     </footer>
 
     <script>
-    // 1) Barra vertical (Line) para Distancia (0..25 cm)
+    // 1) Barra horizontal (Line) para Distancia (0..25 cm), rotada -90° => vertical
     let distanceBar = new ProgressBar.Line('#distanceBarContainer', {
       strokeWidth: 8,
       easing: 'easeInOut',
@@ -273,7 +274,9 @@
             title: { display: true, text: '(%)', color: "#FFFFFF" }
           }
         },
-        plugins: { legend: { labels: { color: "#FFFFFF" } } }
+        plugins: {
+          legend: { labels: { color: "#FFFFFF" } }
+        }
       }
     });
 
@@ -310,7 +313,9 @@
             title: { display: true, text: '°C', color: "#FFFFFF" }
           }
         },
-        plugins: { legend: { labels: { color: "#FFFFFF" } } }
+        plugins: {
+          legend: { labels: { color: "#FFFFFF" } }
+        }
       }
     });
 
@@ -363,7 +368,7 @@
         document.getElementById('opTimeGaugeText').textContent = time_left + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
 
-        // Actualizar gráficas
+        // Gráficas de Humedad y Temperatura
         humChart.data.labels = timestamps;
         humChart.data.datasets[0].data = hum;
         humChart.update();
@@ -376,12 +381,12 @@
         let doorIndicator = document.getElementById('doorIndicator');
         document.getElementById('doorState').textContent = door_state;
         if (door_state.toLowerCase().includes("abierto")) {
-          doorIndicator.style.backgroundColor = "#FF5A5F";  // rojo peligro
+          doorIndicator.style.backgroundColor = "#FF5A5F"; // rojo
         } else {
-          doorIndicator.style.backgroundColor = "#5FC3E4";  // azul seguro
+          doorIndicator.style.backgroundColor = "#5FC3E4"; // azul
         }
 
-        // Luz UV (encendido => rojo, apagado => gris/azul)
+        // Luz UV (encendido => rojo, apagado => gris)
         let uvIndicator = document.getElementById('uvIndicator');
         document.getElementById('uvState').textContent = uv_state;
         if (uv_state.toLowerCase().includes("encendido") || uv_state.toLowerCase().includes("on")) {
