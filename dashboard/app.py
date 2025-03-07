@@ -279,26 +279,28 @@ def device_lc_shaker_data(device_name):
     cursor.execute("SELECT * FROM measurements_lc_shaker ORDER BY id DESC LIMIT 30")
     rows = cursor.fetchall()
     conn.close()
-    timestamps, speeds, amp_mayor, amp_menor, oscilaciones, time_lefts, max_times, states = [], [], [], [], [], [], [], []
+
+    timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states = [], [], [], [], [], [], [], []
     for r in reversed(rows):
         timestamps.append(r["timestamp"])
         speeds.append(r["speed"])
-        amp_mayor.append(r["amp_mayor"])
-        amp_menor.append(r["amp_menor"])
-        oscilaciones.append(r["oscilaciones"])
+        amp_mayors.append(r["amp_mayor"])   # clave en plural para coincidir con front-end
+        amp_menors.append(r["amp_menor"])     # clave en plural
+        oscs.append(r["oscilaciones"])        # clave en plural
         time_lefts.append(r["time_left"])
         max_times.append(r["max_time"])
         states.append(r["state"])
     return jsonify({
         "timestamps": timestamps,
         "speeds": speeds,
-        "amp_mayor": amp_mayor,
-        "amp_menor": amp_menor,
-        "oscilaciones": oscilaciones,
+        "amp_mayors": amp_mayors,
+        "amp_menors": amp_menors,
+        "oscs": oscs,
         "time_lefts": time_lefts,
         "max_times": max_times,
         "states": states
     })
+
 
 @app.route("/device/<device_name>/lecob50_data")
 def device_lecob50_data(device_name):
