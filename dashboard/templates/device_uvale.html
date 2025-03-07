@@ -80,20 +80,13 @@
             text-align: center;
         }
 
-        /* Contenedores para gráficos */
-        .chart-container {
-            width: 300px;
-            height: 200px;
-            margin: 0 auto;
-        }
-
-        /* Barra vertical para la distancia */
+        /* Barra vertical para la distancia (0..25 cm) */
         .vertical-bar-container {
-            width: 30px; /* ancho de la barra */
-            height: 150px; /* alto visual de la barra */
+            width: 30px;
+            height: 150px;
             margin: 0 auto;
             position: relative;
-            transform: rotate(180deg); /* invertimos para que 0 esté abajo */
+            transform: rotate(180deg); /* Para que el 0% quede abajo y el 100% arriba */
         }
 
         .vertical-bar-text {
@@ -101,6 +94,30 @@
             margin-top: 10px;
             font-size: 1rem;
             color: var(--text-color);
+        }
+
+        .gauge-container {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1rem;
+            color: var(--text-color);
+            text-align: center;
+            width: 100px;
+        }
+
+        .chart-container {
+            width: 300px;
+            height: 200px;
+            margin: 0 auto;
         }
 
         a {
@@ -120,7 +137,7 @@
     <h1>{{ device.device_name|capitalize }} - UV ale</h1>
 
     <div class="dashboard-container">
-        <!-- Fila 1: Distancia, Tiempo Operación, Estado -->
+        <!-- Fila 1: Distancia, Tiempo de Operación, Estado -->
         <div class="panel-row">
             <!-- Distancia (barra vertical) -->
             <div class="panel">
@@ -128,17 +145,14 @@
                 <div class="vertical-bar-container" id="distanceBarContainer"></div>
                 <div class="vertical-bar-text" id="distanceBarText">0 cm</div>
             </div>
-
             <!-- Tiempo de Operación (gauge circular) -->
             <div class="panel">
                 <h3>Tiempo de Operación</h3>
-                <div style="width: 150px; height: 150px; margin: 0 auto; position: relative;" id="opTimeGaugeContainer">
-                    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:1rem; color:#F0F0F0; width:100px; text-align:center;"
-                         id="opTimeGaugeText">0 s</div>
+                <div class="gauge-container" id="opTimeGaugeContainer">
+                    <div class="gauge-text" id="opTimeGaugeText">0 s</div>
                 </div>
                 <p style="margin-top:10px;font-size:0.9rem;" id="maxTimeLabel">max: 0 s</p>
             </div>
-
             <!-- Estado Actual (círculo) -->
             <div class="panel">
                 <h3>Estado Actual</h3>
@@ -146,16 +160,14 @@
             </div>
         </div>
 
-        <!-- Fila 2: Puerta y Luz UV con indicadores dinámicos -->
+        <!-- Fila 2: Puerta y Luz UV -->
         <div class="panel-row">
             <div class="panel">
                 <h3>Puerta</h3>
-                <div id="doorIndicator" style="width:40px; height:40px; border-radius:50%; margin:0 auto; background-color:#B0B0B0;"></div>
                 <p id="doorState">--</p>
             </div>
             <div class="panel">
                 <h3>Luz UV</h3>
-                <div id="uvIndicator" style="width:40px; height:40px; border-radius:50%; margin:0 auto; background-color:#B0B0B0;"></div>
                 <p id="uvState">--</p>
             </div>
         </div>
@@ -163,7 +175,7 @@
         <!-- Fila 3: Gráficas de Humedad y Temperatura -->
         <div class="panel-row">
             <div class="panel">
-                <h3>Humedad (%)</h3>
+                <h3>(%)</h3> <!-- Etiqueta Y: solo "(%)" -->
                 <div class="chart-container">
                     <canvas id="humChart"></canvas>
                 </div>
@@ -177,7 +189,7 @@
         </div>
     </div>
 
-    <!-- Botón Volver -->
+    <!-- Botón para Volver -->
     <div style="text-align:center; margin-top:20px;">
         <a href="{{ url_for('home') }}">Volver</a>
     </div>
@@ -187,7 +199,7 @@
     </footer>
 
     <script>
-    // 1) Barra vertical para Distancia (0..25 cm)
+    // 1) Barra vertical (Line) para Distancia (0..25 cm)
     let distanceBar = new ProgressBar.Line('#distanceBarContainer', {
       strokeWidth: 8,
       easing: 'easeInOut',
@@ -219,13 +231,13 @@
       }
     });
 
-    // 3) Gráficos de línea para Humedad y Temperatura
+    // 3) Gráfica de Humedad (solo "HH:MM" en eje X)
     let humChart = new Chart(document.getElementById('humChart').getContext('2d'), {
       type: 'line',
       data: {
         labels: [],
         datasets: [{
-          label: 'Humedad (%)',
+          label: '(%)',
           data: [],
           borderColor: '#5FC3E4',
           fill: false,
@@ -241,7 +253,7 @@
               color: "#FFFFFF",
               callback: function(value, index, ticks) {
                 let label = this.getLabelForValue(value);
-                return label.substring(11,16); // Muestra HH:MM
+                return label.substring(11,16); // HH:MM
               },
               maxTicksLimit: 6
             },
@@ -249,13 +261,14 @@
           },
           y: {
             ticks: { color: "#FFFFFF" },
-            title: { display: true, text: 'Humedad (%)', color: "#FFFFFF" }
+            title: { display: true, text: '(%)', color: "#FFFFFF" }
           }
         },
         plugins: { legend: { labels: { color: "#FFFFFF" } } }
       }
     });
 
+    // 4) Gráfica de Temperatura
     let tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), {
       type: 'line',
       data: {
@@ -277,7 +290,7 @@
               color: "#FFFFFF",
               callback: function(value, index, ticks) {
                 let label = this.getLabelForValue(value);
-                return label.substring(11,16); // Muestra HH:MM
+                return label.substring(11,16); // HH:MM
               },
               maxTicksLimit: 6
             },
@@ -292,25 +305,38 @@
       }
     });
 
-    // 4) Función para actualizar
+    // 5) Función de actualización
     async function updateuvaleData() {
       try {
         const resp = await fetch('{{ url_for("device_uvale_data", device_name=device.device_name) }}');
         const data = await resp.json();
         // data => { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps }
+
         if (data.error) {
+          // Sin datos
           document.getElementById('distanceBarText').textContent = "-- cm";
           distanceBar.animate(0);
           document.getElementById('opTimeGaugeText').textContent = "-- s";
           opTimeGauge.animate(0);
           document.getElementById('maxTimeLabel').textContent = "max: 0 s";
+
           document.getElementById('doorState').textContent = "--";
-          document.getElementById('uvState').textContent = "--";
+          document.getElementById('uvState').textContent   = "--";
+
           let sc = document.getElementById('stateCircle');
           sc.textContent = "Desconectado";
           sc.style.backgroundColor = "#B0B0B0";
+
+          humChart.data.labels = [];
+          humChart.data.datasets[0].data = [];
+          humChart.update();
+
+          tempChart.data.labels = [];
+          tempChart.data.datasets[0].data = [];
+          tempChart.update();
           return;
         }
+
         let { distance, time_left, max_time, door_state, uv_state, hum, temp, status, timestamps } = data;
 
         // Distancia (0..25 cm)
@@ -329,7 +355,7 @@
         document.getElementById('opTimeGaugeText').textContent = time_left + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
 
-        // Humedad y Temperatura (arrays)
+        // Actualizar gráficas
         humChart.data.labels = timestamps;
         humChart.data.datasets[0].data = hum;
         humChart.update();
@@ -338,20 +364,22 @@
         tempChart.data.datasets[0].data = temp;
         tempChart.update();
 
-        // Puerta y Luz UV (indicadores de color)
-        let doorIndicator = document.getElementById('doorIndicator');
-        let uvIndicator   = document.getElementById('uvIndicator');
+        // Puerta (abierto=rojo peligro, cerrado=azul seguro)
         document.getElementById('doorState').textContent = door_state;
-        document.getElementById('uvState').textContent   = uv_state;
         if (door_state.toLowerCase().includes("abierto")) {
-          doorIndicator.style.backgroundColor = "#5FC3E4"; // azul si está abierto
+          // Peligro
+          document.getElementById('doorState').style.color = "#FF5A5F";
         } else {
-          doorIndicator.style.backgroundColor = "#B0B0B0"; // gris si está cerrado
+          // Seguro
+          document.getElementById('doorState').style.color = "#5FC3E4";
         }
+
+        // Luz UV (encendido=rojo, apagado=gris/azul)
+        document.getElementById('uvState').textContent = uv_state;
         if (uv_state.toLowerCase().includes("encendido") || uv_state.toLowerCase().includes("on")) {
-          uvIndicator.style.backgroundColor = "#FF5A5F"; // rojo si está encendido
+          document.getElementById('uvState').style.color = "#FF5A5F";
         } else {
-          uvIndicator.style.backgroundColor = "#B0B0B0"; // gris si está apagado
+          document.getElementById('uvState').style.color = "#B0B0B0";
         }
 
         // Estado Actual (círculo)
