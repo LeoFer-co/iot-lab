@@ -70,8 +70,7 @@
             text-align: center;
             margin-bottom: 20px;
         }
-
-        /* Tres columnas fijas */
+        /* Cuadrícula con 3 columnas fijas por defecto */
         .device-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(280px, 1fr));
@@ -95,7 +94,6 @@
             transition: transform 0.2s ease-in-out;
             min-height: 180px;
             width: 100%;
-            /* ID del dispositivo en data-id */
         }
 
             .device-card:hover {
@@ -134,8 +132,7 @@
             padding: 10px 0;
             color: var(--text-secondary);
         }
-
-        /* Fantasma */
+        /* Clase fantasma para arrastre */
         .sortable-ghost {
             opacity: 0.6;
         }
@@ -163,7 +160,7 @@
         function buildDeviceCard(dev) {
             let cardDiv = document.createElement('div');
             cardDiv.classList.add('device-card');
-            cardDiv.dataset.id = dev.device_name; // Identificador para guardarlo
+            cardDiv.dataset.id = dev.device_name; // Identificador para guardar orden
 
             if (dev.status_final === "Desconectado") {
                 cardDiv.classList.add('offline-card');
@@ -194,7 +191,7 @@
             return cardDiv;
         }
 
-        // Renderiza los dispositivos en el contenedor deviceGrid
+        // Renderiza las tarjetas en deviceGrid
         function renderDevices(devices) {
             deviceGrid.innerHTML = "";
             devices.forEach(dev => {
@@ -203,7 +200,7 @@
             });
         }
 
-        // Descarga la lista de dispositivos (ya ordenada) desde el servidor
+        // Descarga la lista de dispositivos ordenada desde el backend
         async function updateDevices() {
             try {
                 const resp = await fetch("/devices_data");
@@ -214,48 +211,37 @@
             }
         }
 
-        // Llamamos cada 5s
+        // Llamamos cada 5s para actualizar el contenido (el orden lo gestiona el backend)
         setInterval(updateDevices, 5000);
         updateDevices();
 
-        // Sortable con guardado en el servidor
+        // Activamos drag & drop con SortableJS y guardamos el nuevo orden en el backend
         new Sortable(deviceGrid, {
             animation: 300,
             easing: "cubic-bezier(0.25, 0.8, 0.5, 1)", // animación suave
             ghostClass: 'sortable-ghost',
-            swapThreshold: 0.65,
-            invertSwap: true,
-            fallbackOnBody: true,
-            delay: 150,           // 0.15s en pantallas táctiles
+            delay: 150,             // 0.15s en pantallas táctiles
             delayOnTouchOnly: true,
-
             onChoose: function (evt) {
-                // Color verde claro
-                evt.item.style.backgroundColor = "#A4E09F";
+                evt.item.style.backgroundColor = "#A4E09F"; // color verde claro
             },
             onUnchoose: function (evt) {
-                // Restaurar color original
                 evt.item.style.backgroundColor = "";
             },
             onEnd: async function (evt) {
-                // Devolvemos color original
                 evt.item.style.backgroundColor = "";
-
                 // Recolectamos el nuevo orden
                 let newOrder = [];
                 deviceGrid.childNodes.forEach(card => {
                     newOrder.push(card.dataset.id);
                 });
-
-                // Enviamos al servidor
+                // Enviamos al backend para guardar el orden
                 try {
                     await fetch("/api/save_order", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ order: newOrder })
                     });
-                    // El servidor debe almacenar este orden en BD y
-                    // hacer que /devices_data devuelva los dispositivos en este orden.
                 } catch (err) {
                     console.error("Error guardando el nuevo orden:", err);
                 }

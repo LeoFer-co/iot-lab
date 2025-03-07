@@ -33,22 +33,23 @@ def home():
 def devices_data():
     """
     Devuelve en JSON la lista de dispositivos, mezclando:
-      - Lo que hay en la tabla 'devices'
+      - Lo que hay en la tabla 'devices', ordenado por 'position'
       - Los 6 dispositivos predefinidos (si alguno no está en DB, se crea "virtualmente" como desconectado)
     """
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM devices")
+    # Ordenamos por la columna "position"
+    cursor.execute("SELECT * FROM devices ORDER BY position ASC")
     rows = cursor.fetchall()
     conn.close()
 
-    # Creamos un dict para acceder rápido por device_name
     db_devices = {}
+    db_list = []
     now = datetime.now()
     for dev in rows:
         dev_dict = dict(dev)
         device_name = dev_dict["device_name"]
-        # Lógica offline
+        # Lógica para determinar el estado final (offline o el último estado)
         try:
             last_seen_str = dev_dict["last_seen"]  # "YYYY-MM-DD HH:MM:SS"
             last_dt = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
@@ -60,15 +61,13 @@ def devices_data():
         except Exception:
             dev_dict["status_final"] = "Desconocido"
         db_devices[device_name] = dev_dict
-
-    # Ahora creamos la lista final, asegurándonos de que estén los 6
-    final_list = []
+        db_list.append(dev_dict)
+    
+    # Creamos la lista final: primero los dispositivos en DB (ordenados por position)
+    final_list = db_list[:]
+    # Luego, para los predefinidos que aún no están en DB, agregamos placeholders
     for (dev_name, dev_type) in PREDEFINED_DEVICES:
-        if dev_name in db_devices:
-            # Ya existe en la DB
-            final_list.append(db_devices[dev_name])
-        else:
-            # No está en la DB -> Creamos un "placeholder" desconectado
+        if dev_name not in db_devices:
             final_list.append({
                 "device_name": dev_name,
                 "device_type": dev_type,
@@ -76,7 +75,6 @@ def devices_data():
                 "last_seen": "1970-01-01 00:00:00",
                 "status_final": "Desconectado"
             })
-
     return jsonify(final_list)
 
 @app.route("/device/<device_name>")
@@ -94,7 +92,6 @@ def device_detail(device_name):
         # No está en DB -> lo consideramos desconectado
         return f"El dispositivo '{device_name}' no tiene datos en la base. Desconectado.", 403
 
-    # Detectar desconexión
     try:
         last_dt = datetime.strptime(device["last_seen"], "%Y-%m-%d %H:%M:%S")
         diff = (datetime.now() - last_dt).total_seconds()
@@ -107,7 +104,6 @@ def device_detail(device_name):
 
     device_type = device["device_type"]
 
-    # Lógica para cada tipo
     if device_type == "estacion":
         cursor.execute("SELECT * FROM measurements_estacion ORDER BY id DESC LIMIT 30")
         rows = cursor.fetchall()
@@ -124,13 +120,11 @@ def device_detail(device_name):
                                temps=temps,
                                hums=hums,
                                press=press)
-
     elif device_type == "microdos":
         cursor.execute("SELECT * FROM measurements_microdos ORDER BY id DESC LIMIT 1")
         last_row = cursor.fetchone()
         conn.close()
         return render_template("device_microdos.html", device=device, row=last_row)
-
     elif device_type == "reactor":
         cursor.execute("SELECT * FROM measurements_reactor ORDER BY id DESC LIMIT 30")
         rows = cursor.fetchall()
@@ -151,32 +145,24 @@ def device_detail(device_name):
                                time_lefts=time_lefts,
                                max_times=max_times,
                                states=states)
-
     elif device_type == "lc_shaker":
         cursor.execute("SELECT * FROM measurements_lc_shaker ORDER BY id DESC LIMIT 30")
         rows = cursor.fetchall()
         conn.close()
         return render_template("device_lc_shaker.html", device=device)
-
     elif device_type == "lecob50":
         cursor.execute("SELECT * FROM measurements_lecob50 ORDER BY id DESC LIMIT 1")
         last_row = cursor.fetchone()
         conn.close()
         return render_template("device_lecob50.html", device=device, row=last_row)
-
     elif device_type == "uvale":
         cursor.execute("SELECT * FROM measurements_uvale ORDER BY id DESC LIMIT 1")
         last_row = cursor.fetchone()
         conn.close()
         return render_template("device_uvale.html", device=device, row=last_row)
-
     else:
         conn.close()
         return f"Tipo de dispositivo desconocido: {device_type}", 400
-
-# Endpoints de tiempo real: 
-# (Estación y Microdos ya implementados)
-# A continuación, sólo ejemplos. Adáptalos según tus datos.
 
 @app.route("/device/<device_name>/estacion_data")
 def device_estacion_data(device_name):
@@ -208,7 +194,6 @@ def device_estacion_data(device_name):
         "hums": hums,
         "press": press
     })
-
 
 @app.route("/device/<device_name>/microdos_data")
 def device_microdos_data(device_name):
@@ -269,7 +254,6 @@ def device_reactor_data(device_name):
 def device_lc_shaker_data(device_name):
     conn = get_db()
     cursor = conn.cursor()
-    # Verificar que el dispositivo exista y sea de tipo lc_shaker
     cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='lc_shaker'", (device_name,))
     dev = cursor.fetchone()
     if not dev:
@@ -284,9 +268,9 @@ def device_lc_shaker_data(device_name):
     for r in reversed(rows):
         timestamps.append(r["timestamp"])
         speeds.append(r["speed"])
-        amp_mayors.append(r["amp_mayor"])   # clave en plural para coincidir con front-end
-        amp_menors.append(r["amp_menor"])     # clave en plural
-        oscs.append(r["oscilaciones"])        # clave en plural
+        amp_mayors.append(r["amp_mayor"])
+        amp_menors.append(r["amp_menor"])
+        oscs.append(r["oscilaciones"])
         time_lefts.append(r["time_left"])
         max_times.append(r["max_time"])
         states.append(r["state"])
@@ -301,12 +285,10 @@ def device_lc_shaker_data(device_name):
         "states": states
     })
 
-
 @app.route("/device/<device_name>/lecob50_data")
 def device_lecob50_data(device_name):
     conn = get_db()
     cursor = conn.cursor()
-    # Verificar que el dispositivo exista y sea de tipo lecob50
     cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='lecob50'", (device_name,))
     dev = cursor.fetchone()
     if not dev:
@@ -331,14 +313,12 @@ def device_lecob50_data(device_name):
 def device_uvale_data(device_name):
     conn = get_db()
     cursor = conn.cursor()
-    # Verificar que existe en 'devices' con device_type='uvale'
     cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='uvale'", (device_name,))
     dev = cursor.fetchone()
     if not dev:
         conn.close()
         return jsonify({"error": "No existe UV ale con ese nombre"}), 404
 
-    # Consulta las últimas 30 mediciones
     cursor.execute("SELECT * FROM measurements_uvale ORDER BY id DESC LIMIT 30")
     rows = cursor.fetchall()
     conn.close()
@@ -346,21 +326,15 @@ def device_uvale_data(device_name):
     if not rows:
         return jsonify({"error": "Sin datos aún"}), 200
 
-    # Construimos arrays para hum, temp, timestamps
     timestamps = []
     hum = []
     temp = []
-
-    # Recorremos en orden cronológico (del más antiguo al más reciente)
     for r in reversed(rows):
-        # Se asume que en la tabla hay una columna 'timestamp' en formato "YYYY-MM-DD HH:MM:SS"
         timestamps.append(r["timestamp"])
         hum.append(r["hum"])
         temp.append(r["temp"])
 
-    # Tomamos la última fila (la más reciente) para distance, time_left, etc.
-    last = rows[0]  # Porque hicimos ORDER BY id DESC, la fila 0 es la más reciente
-    # Retorna un JSON con los arrays y los valores puntuales
+    last = rows[0]
     return jsonify({
         "distance": last["distance"],
         "time_left": last["time_left"],
@@ -372,6 +346,7 @@ def device_uvale_data(device_name):
         "temp": temp,
         "timestamps": timestamps
     })
+
 @app.route('/api/save_order', methods=['POST'])
 def save_order():
     data = request.get_json()
@@ -381,7 +356,6 @@ def save_order():
 
     conn = get_db()
     cursor = conn.cursor()
-    # Actualizamos la columna "position" para cada dispositivo según su posición en el arreglo
     for pos, device_name in enumerate(order):
         cursor.execute("UPDATE devices SET position = ? WHERE device_name = ?", (pos, device_name))
     conn.commit()
