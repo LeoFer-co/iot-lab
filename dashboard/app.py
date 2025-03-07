@@ -198,28 +198,145 @@ def device_estacion_data(device_name):
 
 @app.route("/device/<device_name>/microdos_data")
 def device_microdos_data(device_name):
-    # ... Igual que antes ...
-    pass
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='microdos'", (device_name,))
+    dev = cursor.fetchone()
+    if not dev:
+        conn.close()
+        return jsonify({"error": "No existe microdos con ese nombre"}), 404
+
+    cursor.execute("SELECT * FROM measurements_microdos ORDER BY id DESC LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        return jsonify({
+            "status": row["status"],
+            "flow_set": row["flow_set"],
+            "time_left": row["time_left"]
+        })
+    else:
+        return jsonify({"error": "Sin datos aún"}), 200
 
 @app.route("/device/<device_name>/reactor_data")
 def device_reactor_data(device_name):
-    # Devuelve JSON con la info para device_reactor.html
-    pass
+    conn = get_db()
+    cursor = conn.cursor()
+    # Verificar que el dispositivo exista y sea de tipo reactor
+    cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='reactor'", (device_name,))
+    dev = cursor.fetchone()
+    if not dev:
+        conn.close()
+        return jsonify({"error": "No existe reactor con ese nombre"}), 404
+
+    cursor.execute("SELECT * FROM measurements_reactor ORDER BY id DESC LIMIT 30")
+    rows = cursor.fetchall()
+    conn.close()
+    timestamps, temps, speeds, time_lefts, max_times, states = [], [], [], [], [], []
+    for r in reversed(rows):
+        timestamps.append(r["timestamp"])
+        temps.append(r["temp"])
+        speeds.append(r["speed"])
+        time_lefts.append(r["time_left"])
+        max_times.append(r["max_time"])
+        states.append(r["state"])
+    return jsonify({
+        "timestamps": timestamps,
+        "temps": temps,
+        "speeds": speeds,
+        "time_lefts": time_lefts,
+        "max_times": max_times,
+        "states": states
+    })
 
 @app.route("/device/<device_name>/lc_shaker_data")
 def device_lc_shaker_data(device_name):
-    # Devuelve JSON para device_lc_shaker.html
-    pass
+    conn = get_db()
+    cursor = conn.cursor()
+    # Verificar que el dispositivo exista y sea de tipo lc_shaker
+    cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='lc_shaker'", (device_name,))
+    dev = cursor.fetchone()
+    if not dev:
+        conn.close()
+        return jsonify({"error": "No existe LC_Shaker con ese nombre"}), 404
+
+    cursor.execute("SELECT * FROM measurements_lc_shaker ORDER BY id DESC LIMIT 30")
+    rows = cursor.fetchall()
+    conn.close()
+    timestamps, speeds, amp_mayor, amp_menor, oscilaciones, time_lefts, max_times, states = [], [], [], [], [], [], [], []
+    for r in reversed(rows):
+        timestamps.append(r["timestamp"])
+        speeds.append(r["speed"])
+        amp_mayor.append(r["amp_mayor"])
+        amp_menor.append(r["amp_menor"])
+        oscilaciones.append(r["oscilaciones"])
+        time_lefts.append(r["time_left"])
+        max_times.append(r["max_time"])
+        states.append(r["state"])
+    return jsonify({
+        "timestamps": timestamps,
+        "speeds": speeds,
+        "amp_mayor": amp_mayor,
+        "amp_menor": amp_menor,
+        "oscilaciones": oscilaciones,
+        "time_lefts": time_lefts,
+        "max_times": max_times,
+        "states": states
+    })
 
 @app.route("/device/<device_name>/lecob50_data")
 def device_lecob50_data(device_name):
-    # Devuelve JSON para device_lecob50.html
-    pass
+    conn = get_db()
+    cursor = conn.cursor()
+    # Verificar que el dispositivo exista y sea de tipo lecob50
+    cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='lecob50'", (device_name,))
+    dev = cursor.fetchone()
+    if not dev:
+        conn.close()
+        return jsonify({"error": "No existe LECOB 50 con ese nombre"}), 404
+
+    cursor.execute("SELECT * FROM measurements_lecob50 ORDER BY id DESC LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return jsonify({
+            "on_time": row["on_time"],
+            "off_time": row["off_time"],
+            "time_left": row["time_left"],
+            "max_time": row["max_time"],
+            "status": row["status"]
+        })
+    else:
+        return jsonify({"error": "Sin datos aún"}), 200
 
 @app.route("/device/<device_name>/uvale_data")
 def device_uvale_data(device_name):
-    # Devuelve JSON para device_uvale.html
-    pass
+    conn = get_db()
+    cursor = conn.cursor()
+    # Verificar que el dispositivo exista y sea de tipo uvale
+    cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='uvale'", (device_name,))
+    dev = cursor.fetchone()
+    if not dev:
+        conn.close()
+        return jsonify({"error": "No existe UV ale con ese nombre"}), 404
+
+    cursor.execute("SELECT * FROM measurements_uvale ORDER BY id DESC LIMIT 1")
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return jsonify({
+            "distance": row["distance"],
+            "time_left": row["time_left"],
+            "max_time": row["max_time"],
+            "door_state": row["door_state"],
+            "uv_state": row["uv_state"],
+            "hum": row["hum"],
+            "temp": row["temp"],
+            "status": row["status"]
+        })
+    else:
+        return jsonify({"error": "Sin datos aún"}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
