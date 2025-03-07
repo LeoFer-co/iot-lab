@@ -6,7 +6,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- ProgressBar.js para los gauges -->
+    <!-- Incluimos ProgressBar.js para los gauges -->
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
     <style>
         :root {
@@ -95,7 +95,7 @@
             color: #FFF;
             text-align: center;
         }
-        /* Canvas para las V */
+        /* Canvas para las V (amplitud) */
         .ampCanvas {
             width: 200px;
             height: 200px;
@@ -151,7 +151,7 @@
                 <canvas id="vCanvasMayor" class="ampCanvas"></canvas>
                 <p>Mayor: <span id="ampMayorVal">0</span>°</p>
             </div>
-            <!-- Amplitud Menor + Oscilaciones -->
+            <!-- Amplitud Menor y Oscilaciones -->
             <div class="panel">
                 <h3>Amplitud Menor</h3>
                 <canvas id="vCanvasMenor" class="ampCanvas"></canvas>
@@ -203,51 +203,59 @@
     });
 
     /**
-     * Dibuja una V orientada hacia arriba en un canvas,
-     * con un ángulo total = angleDeg (grados).
-     * lineWidth: grosor de línea
-     * La longitud se ajusta para no salirse del recuadro.
+     * Dibuja una V orientada hacia arriba en el canvas.
+     * Se utiliza un tamaño reducido para que la V se mantenga dentro del recuadro.
+     * @param {string} canvasId - ID del canvas
+     * @param {number} angleDeg - Ángulo en grados (lo que ingresa el equipo)
+     * @param {number} lineWidth - Grosor de la línea
      */
     function drawUpwardV(canvasId, angleDeg, lineWidth) {
       const canvas = document.getElementById(canvasId);
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Apex en bottom center
+      // Queremos que la V sea más pequeña: usaremos la mitad de la longitud del recuadro
       const margin = 20;
       const centerX = canvas.width / 2;
-      const bottomY = canvas.height - margin;
-      // definimos la longitud de la línea (L) para que la V quepa
-      let L = canvas.height - 2 * margin;
+      // Usamos L = (canvas.height - 2*margin) / 2 para que la V ocupe la mitad del alto disponible
+      let L = (canvas.height - 2 * margin) / 2;
 
-      // limitamos angleDeg a un rango razonable, ej. 0..120
+      // Limitar el ángulo para evitar valores extremos
       if (angleDeg < 0) angleDeg = 0;
-      if (angleDeg > 120) angleDeg = 120;
+      // Permitimos mostrar el ángulo real, sin saturación, ya que la longitud se reduce
       let halfAngleRad = (angleDeg * Math.PI / 180) / 2;
 
       ctx.lineWidth = lineWidth;
       ctx.strokeStyle = "#5FC3E4";
 
-      // Calculamos las coordenadas de los extremos
-      // La línea hace un ángulo 'angleDeg' total,
-      // => cada lado tiene halfAngleRad
-      // El offset horizontal es L * sin(halfAngleRad)
-      // El offset vertical es L * cos(halfAngleRad)
-      let leftX = centerX - (L * Math.sin(halfAngleRad));
-      let leftY = bottomY - (L * Math.cos(halfAngleRad));
-      let rightX = centerX + (L * Math.sin(halfAngleRad));
-      let rightY = bottomY - (L * Math.cos(halfAngleRad));
+      // Calcula los offsets horizontales y verticales usando L
+      let offset = L * Math.sin(halfAngleRad);
+      let verticalOffset = L * Math.cos(halfAngleRad);
 
-      // Dibuja línea izquierda
+      // Definimos el punto de partida (apex) en la parte inferior central
+      const apexX = centerX;
+      const apexY = canvas.height - margin;
+
+      // Calcula el punto final para cada lado: se recortan las líneas para que no toquen el borde
+      const leftX = apexX - offset;
+      const leftY = apexY - verticalOffset;
+      const rightX = apexX + offset;
+      const rightY = apexY - verticalOffset;
+
+      // Centramos la V verticalmente en el canvas
+      const currentVHeight = verticalOffset; // altura de la V
+      const shiftY = (canvas.height - currentVHeight - margin) / 2;
+
+      // Dibujar línea izquierda
       ctx.beginPath();
-      ctx.moveTo(centerX, bottomY);
-      ctx.lineTo(leftX, leftY);
+      ctx.moveTo(apexX, apexY - shiftY);
+      ctx.lineTo(leftX, leftY - shiftY);
       ctx.stroke();
 
-      // Dibuja línea derecha
+      // Dibujar línea derecha
       ctx.beginPath();
-      ctx.moveTo(centerX, bottomY);
-      ctx.lineTo(rightX, rightY);
+      ctx.moveTo(apexX, apexY - shiftY);
+      ctx.lineTo(rightX, rightY - shiftY);
       ctx.stroke();
     }
 
@@ -261,7 +269,6 @@
           console.log("No hay datos en measurements_lc_shaker.");
           return;
         }
-
         let currentSpeed   = data.speeds[lastIndex] || 0;
         let currentAmpM    = data.amp_mayors[lastIndex] || 0;
         let currentAmpm    = data.amp_menors[lastIndex] || 0;
@@ -270,20 +277,20 @@
         let currentMaxTime = data.max_times[lastIndex] || 60;
         let currentState   = data.states[lastIndex] || "idle";
 
-        // Gauge de velocidad
+        // Actualizar gauge de velocidad
         let ratioSpeed = currentSpeed / 80;
         if (ratioSpeed > 1) ratioSpeed = 1;
         speedGauge.animate(ratioSpeed, { duration: 500 });
         document.getElementById('speedGaugeText').textContent = currentSpeed.toFixed(0) + " rpm";
 
-        // Gauge de tiempo
+        // Actualizar gauge de tiempo
         let ratioTime = currentTime / currentMaxTime;
         if (ratioTime > 1) ratioTime = 1;
         timeGauge.animate(ratioTime, { duration: 500 });
         document.getElementById('timeGaugeText').textContent = currentTime + " s";
         document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
 
-        // Estado en círculo
+        // Actualizar estado en el círculo
         const stateCircle = document.getElementById('stateCircle');
         stateCircle.textContent = currentState;
         switch(currentState) {
@@ -303,17 +310,16 @@
             stateCircle.style.backgroundColor = "#B0B0B0";
         }
 
-        // Amplitud mayor (línea más gruesa)
+        // Actualizar amplitud mayor
         document.getElementById('ampMayorVal').textContent = currentAmpM.toFixed(1);
         drawUpwardV("vCanvasMayor", currentAmpM, 6);
 
-        // Amplitud menor (línea normal)
+        // Actualizar amplitud menor
         document.getElementById('ampMenorVal').textContent = currentAmpm.toFixed(1);
         drawUpwardV("vCanvasMenor", currentAmpm, 4);
 
-        // Oscilaciones
+        // Actualizar oscilaciones
         document.getElementById('oscilacionesVal').textContent = currentOsc;
-
       } catch (err) {
         console.error("Error al actualizar lc_shaker:", err);
       }
