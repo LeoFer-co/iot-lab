@@ -6,8 +6,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Incluimos ProgressBar.js para los gauges -->
+    <!-- Incluimos ProgressBar.js para los gauges y Chart.js para los donut charts -->
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --body-bg: #1C242C;
@@ -65,7 +66,7 @@
                 font-size: 1.1rem;
             }
 
-        .gauge-container {
+        .gauge-container, .donut-container {
             width: 150px;
             height: 150px;
             margin: 0 auto;
@@ -95,14 +96,10 @@
             color: #FFF;
             text-align: center;
         }
-        /* Canvas para las V (amplitud) */
-        .ampCanvas {
-            width: 200px;
-            height: 200px;
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            margin: 0 auto;
-            display: block;
+        /* Canvas para los donut charts */
+        .donut-canvas {
+            width: 100%;
+            height: 100%;
         }
 
         a {
@@ -145,17 +142,21 @@
         </div>
 
         <div class="panel-row">
-            <!-- Amplitud Mayor -->
+            <!-- Amplitud Mayor (Donut Chart) -->
             <div class="panel">
                 <h3>Amplitud Mayor</h3>
-                <canvas id="vCanvasMayor" class="ampCanvas"></canvas>
+                <div class="donut-container">
+                    <canvas id="donutCanvasMayor" class="donut-canvas"></canvas>
+                </div>
                 <p>Mayor: <span id="ampMayorVal">0</span>°</p>
             </div>
-            <!-- Amplitud Menor y Oscilaciones -->
+            <!-- Amplitud Menor (Donut Chart) y Oscilaciones -->
             <div class="panel">
                 <h3>Amplitud Menor</h3>
-                <canvas id="vCanvasMenor" class="ampCanvas"></canvas>
-                <p>Menor: <span id="ampMenorVal">0</span>°</p>
+                <div class="donut-container">
+                    <canvas id="donutCanvasMenor" class="donut-canvas"></canvas>
+                </div>
+                <p>Menor: <span id="ampMenorDonutVal">0</span>°</p>
                 <p>Oscilaciones: <span id="oscilacionesVal">0</span></p>
             </div>
         </div>
@@ -202,62 +203,55 @@
       }
     });
 
-    /**
-     * Dibuja una V orientada hacia arriba en el canvas.
-     * Se utiliza un tamaño reducido para que la V se mantenga dentro del recuadro.
-     * @param {string} canvasId - ID del canvas
-     * @param {number} angleDeg - Ángulo en grados (lo que ingresa el equipo)
-     * @param {number} lineWidth - Grosor de la línea
-     */
-    function drawUpwardV(canvasId, angleDeg, lineWidth) {
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Queremos que la V sea más pequeña: usaremos la mitad de la longitud del recuadro
-      const margin = 20;
-      const centerX = canvas.width / 2;
-      // Usamos L = (canvas.height - 2*margin) / 2 para que la V ocupe la mitad del alto disponible
-      let L = (canvas.height - 2 * margin) / 2;
-
-      // Limitar el ángulo para evitar valores extremos
-      if (angleDeg < 0) angleDeg = 0;
-      // Permitimos mostrar el ángulo real, sin saturación, ya que la longitud se reduce
-      let halfAngleRad = (angleDeg * Math.PI / 180) / 2;
-
-      ctx.lineWidth = lineWidth;
-      ctx.strokeStyle = "#5FC3E4";
-
-      // Calcula los offsets horizontales y verticales usando L
-      let offset = L * Math.sin(halfAngleRad);
-      let verticalOffset = L * Math.cos(halfAngleRad);
-
-      // Definimos el punto de partida (apex) en la parte inferior central
-      const apexX = centerX;
-      const apexY = canvas.height - margin;
-
-      // Calcula el punto final para cada lado: se recortan las líneas para que no toquen el borde
-      const leftX = apexX - offset;
-      const leftY = apexY - verticalOffset;
-      const rightX = apexX + offset;
-      const rightY = apexY - verticalOffset;
-
-      // Centramos la V verticalmente en el canvas
-      const currentVHeight = verticalOffset; // altura de la V
-      const shiftY = (canvas.height - currentVHeight - margin) / 2;
-
-      // Dibujar línea izquierda
-      ctx.beginPath();
-      ctx.moveTo(apexX, apexY - shiftY);
-      ctx.lineTo(leftX, leftY - shiftY);
-      ctx.stroke();
-
-      // Dibujar línea derecha
-      ctx.beginPath();
-      ctx.moveTo(apexX, apexY - shiftY);
-      ctx.lineTo(rightX, rightY - shiftY);
-      ctx.stroke();
+    // Inicializar Donut Chart para Amplitud Mayor
+    let donutChartMayor;
+    function createDonutChartMayor() {
+      const ctxMayor = document.getElementById('donutCanvasMayor').getContext('2d');
+      donutChartMayor = new Chart(ctxMayor, {
+        type: 'doughnut',
+        data: {
+          labels: ['Ángulo', 'Resto'],
+          datasets: [{
+            data: [0, 360],
+            backgroundColor: ['#FF5A5F', '#2A333B'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          cutout: '70%',
+          responsive: true,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          rotation: -90,
+          circumference: 360
+        }
+      });
     }
+    createDonutChartMayor();
+
+    // Inicializar Donut Chart para Amplitud Menor
+    let donutChartMenor;
+    function createDonutChartMenor() {
+      const ctxMenor = document.getElementById('donutCanvasMenor').getContext('2d');
+      donutChartMenor = new Chart(ctxMenor, {
+        type: 'doughnut',
+        data: {
+          labels: ['Ángulo', 'Resto'],
+          datasets: [{
+            data: [0, 360],
+            backgroundColor: ['#5FC3E4', '#2A333B'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          cutout: '70%',
+          responsive: true,
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          rotation: -90,
+          circumference: 360
+        }
+      });
+    }
+    createDonutChartMenor();
 
     async function updateLCShakerData() {
       try {
@@ -310,13 +304,15 @@
             stateCircle.style.backgroundColor = "#B0B0B0";
         }
 
-        // Actualizar amplitud mayor
+        // Actualizar Donut para Amplitud Mayor
+        donutChartMayor.data.datasets[0].data = [currentAmpM, 360 - currentAmpM];
+        donutChartMayor.update();
         document.getElementById('ampMayorVal').textContent = currentAmpM.toFixed(1);
-        drawUpwardV("vCanvasMayor", currentAmpM, 6);
 
-        // Actualizar amplitud menor
-        document.getElementById('ampMenorVal').textContent = currentAmpm.toFixed(1);
-        drawUpwardV("vCanvasMenor", currentAmpm, 4);
+        // Actualizar Donut para Amplitud Menor
+        donutChartMenor.data.datasets[0].data = [currentAmpm, 360 - currentAmpm];
+        donutChartMenor.update();
+        document.getElementById('ampMenorDonutVal').textContent = currentAmpm.toFixed(1);
 
         // Actualizar oscilaciones
         document.getElementById('oscilacionesVal').textContent = currentOsc;
