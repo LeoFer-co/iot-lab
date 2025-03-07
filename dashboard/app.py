@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, request, jsonify
 import sqlite3
 from datetime import datetime
 
@@ -372,5 +372,21 @@ def device_uvale_data(device_name):
         "temp": temp,
         "timestamps": timestamps
     })
+@app.route('/api/save_order', methods=['POST'])
+def save_order():
+    data = request.get_json()
+    order = data.get("order", [])
+    if not order:
+        return jsonify({"error": "No order provided"}), 400
+
+    conn = get_db()
+    cursor = conn.cursor()
+    # Actualizamos la columna "position" para cada dispositivo según su posición en el arreglo
+    for pos, device_name in enumerate(order):
+        cursor.execute("UPDATE devices SET position = ? WHERE device_name = ?", (pos, device_name))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "Order saved successfully"}), 200
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

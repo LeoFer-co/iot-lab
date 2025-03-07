@@ -20,6 +20,15 @@ cursor.execute('''
   )
 ''')
 
+# Intentamos agregar la columna "position" si no existe
+try:
+    cursor.execute("ALTER TABLE devices ADD COLUMN position INTEGER DEFAULT 0")
+    conn.commit()
+except sqlite3.OperationalError as e:
+    # Ignoramos el error si la columna ya existe
+    if "duplicate column name" not in str(e).lower():
+        print("Error al agregar la columna 'position':", e)
+
 # Medidas para Estación Meteorológica
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_estacion (

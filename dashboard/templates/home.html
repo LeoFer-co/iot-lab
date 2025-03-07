@@ -6,7 +6,7 @@
     <!-- Fuente Montserrat -->
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- SortableJS para drag & drop -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
@@ -70,14 +70,15 @@
             text-align: center;
             margin-bottom: 20px;
         }
-        /* Tres columnas fijas por defecto */
+
+        /* Tres columnas fijas */
         .device-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(280px, 1fr));
             gap: 20px;
             justify-items: center;
         }
-        /* Responsividad */
+
         @media (max-width: 900px) {
             .device-grid {
                 grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -94,7 +95,7 @@
             transition: transform 0.2s ease-in-out;
             min-height: 180px;
             width: 100%;
-            /* Atributo data-id para identificar la tarjeta */
+            /* ID del dispositivo en data-id */
         }
 
             .device-card:hover {
@@ -133,7 +134,8 @@
             padding: 10px 0;
             color: var(--text-secondary);
         }
-        /* Clase fantasma */
+
+        /* Fantasma */
         .sortable-ghost {
             opacity: 0.6;
         }
@@ -155,31 +157,13 @@
     </footer>
 
     <script>
-        let hasUserSorted = false; // para no recrear la cuadrícula si el usuario ya ordenó
         const deviceGrid = document.getElementById('deviceGrid');
 
-        // Lee el orden guardado en localStorage (si existe)
-        function getSavedOrder() {
-            let orderStr = localStorage.getItem('deviceOrder');
-            if (!orderStr) return null;
-            try {
-                return JSON.parse(orderStr);
-            } catch (e) {
-                return null;
-            }
-        }
-
-        // Guarda el orden en localStorage
-        function saveOrder(orderArray) {
-            localStorage.setItem('deviceOrder', JSON.stringify(orderArray));
-        }
-
-        // Crea la tarjeta de un dispositivo
+        // Crea la tarjeta para un dispositivo
         function buildDeviceCard(dev) {
             let cardDiv = document.createElement('div');
             cardDiv.classList.add('device-card');
-            // Atributo data-id con el nombre del dispositivo
-            cardDiv.dataset.id = dev.device_name;
+            cardDiv.dataset.id = dev.device_name; // Identificador para guardarlo
 
             if (dev.status_final === "Desconectado") {
                 cardDiv.classList.add('offline-card');
@@ -210,49 +194,7 @@
             return cardDiv;
         }
 
-        // Reordena el array de dispositivos según el orden guardado
-        function reorderDevices(devices, savedOrder) {
-            // Filtramos para quedarnos solo con los que existen en devices
-            let ordered = [];
-            let deviceMap = new Map();
-            devices.forEach(d => deviceMap.set(d.device_name, d));
-
-            // Primero, añadimos en el orden guardado
-            savedOrder.forEach(id => {
-                if (deviceMap.has(id)) {
-                    ordered.push(deviceMap.get(id));
-                    deviceMap.delete(id);
-                }
-            });
-            // Luego, añadimos los que no estaban en savedOrder
-            deviceMap.forEach((val) => {
-                ordered.push(val);
-            });
-            return ordered;
-        }
-
-        async function updateDevices() {
-            if (hasUserSorted) return; // no refrescamos si el usuario reordenó manualmente
-
-            try {
-                const resp = await fetch("/devices_data");
-                const devices = await resp.json();
-
-                // Obtenemos el orden guardado
-                let savedOrder = getSavedOrder();
-                if (savedOrder) {
-                    // Reordenamos devices según savedOrder
-                    let reordered = reorderDevices(devices, savedOrder);
-                    renderDevices(reordered);
-                } else {
-                    renderDevices(devices);
-                }
-            } catch (err) {
-                console.error("Error al actualizar dispositivos:", err);
-            }
-        }
-
-        // Renderiza las tarjetas en deviceGrid
+        // Renderiza los dispositivos en el contenedor deviceGrid
         function renderDevices(devices) {
             deviceGrid.innerHTML = "";
             devices.forEach(dev => {
@@ -261,36 +203,62 @@
             });
         }
 
-        // Se actualiza cada 5s
+        // Descarga la lista de dispositivos (ya ordenada) desde el servidor
+        async function updateDevices() {
+            try {
+                const resp = await fetch("/devices_data");
+                const devices = await resp.json();
+                renderDevices(devices);
+            } catch (err) {
+                console.error("Error al actualizar dispositivos:", err);
+            }
+        }
+
+        // Llamamos cada 5s
         setInterval(updateDevices, 5000);
         updateDevices();
 
-        // Activamos drag & drop con SortableJS
-        let sortable = new Sortable(deviceGrid, {
+        // Sortable con guardado en el servidor
+        new Sortable(deviceGrid, {
             animation: 300,
+            easing: "cubic-bezier(0.25, 0.8, 0.5, 1)", // animación suave
             ghostClass: 'sortable-ghost',
-            delay: 150,             // 0.15s en pantallas táctiles
+            swapThreshold: 0.65,
+            invertSwap: true,
+            fallbackOnBody: true,
+            delay: 150,           // 0.15s en pantallas táctiles
             delayOnTouchOnly: true,
+
             onChoose: function (evt) {
-                // Color neutro mientras arrastras
-                evt.item.style.backgroundColor = "#FFD35F";
+                // Color verde claro
+                evt.item.style.backgroundColor = "#A4E09F";
             },
             onUnchoose: function (evt) {
-                // Si sueltas antes de mover, restaura
+                // Restaurar color original
                 evt.item.style.backgroundColor = "";
             },
-            onEnd: function (evt) {
-                // Al soltar la tarjeta
+            onEnd: async function (evt) {
+                // Devolvemos color original
                 evt.item.style.backgroundColor = "";
-                hasUserSorted = true; // no refrescamos más desde el servidor
 
-                // Guardamos el nuevo orden en localStorage
+                // Recolectamos el nuevo orden
                 let newOrder = [];
-                // Recorremos los hijos de deviceGrid en el orden final
                 deviceGrid.childNodes.forEach(card => {
-                    newOrder.push(card.dataset.id); // device_name
+                    newOrder.push(card.dataset.id);
                 });
-                saveOrder(newOrder);
+
+                // Enviamos al servidor
+                try {
+                    await fetch("/api/save_order", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ order: newOrder })
+                    });
+                    // El servidor debe almacenar este orden en BD y
+                    // hacer que /devices_data devuelva los dispositivos en este orden.
+                } catch (err) {
+                    console.error("Error guardando el nuevo orden:", err);
+                }
             }
         });
     </script>
