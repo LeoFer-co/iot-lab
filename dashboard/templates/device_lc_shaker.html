@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>{{ device.device_name|capitalize }} - LC_Shaker</title>
+    <title>{{ device.device_name|capitalize }} - lc_shaker</title>
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -88,7 +88,7 @@
     </style>
 </head>
 <body>
-    <h1>{{ device.device_name|capitalize }} - LC_Shaker</h1>
+    <h1>{{ device.device_name|capitalize }} - lc_shaker</h1>
 
     <div class="dashboard-container">
         <div class="panel-row">
@@ -201,7 +201,7 @@
         document.getElementById('ampMayorVal').textContent = currentAmpM.toFixed(1);
         document.getElementById('ampMenorVal').textContent = currentAmpm.toFixed(1);
       } catch (err) {
-        console.error("Error al actualizar LC_Shaker:", err);
+        console.error("Error al actualizar lc_shaker:", err);
       }
     }
 
