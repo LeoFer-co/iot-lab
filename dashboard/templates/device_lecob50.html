@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>{{ device.device_name|capitalize }} - LECOB 50</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
+    <style>
+        :root {
+            --body-bg: #1C242C;
+            --card-bg: #2A333B;
+            --card-border: #424F5B;
+            --accent: #D07B2C;
+            --text-color: #F0F0F0;
+            --text-secondary: #B0B0B0;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--body-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        header, footer {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+            header img {
+                height: 50px;
+                vertical-align: middle;
+                margin-right: 10px;
+            }
+
+            header h1 {
+                display: inline;
+                color: var(--accent);
+            }
+
+        .dashboard-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
+        }
+
+        .info-panel {
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .gauge-container {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1rem;
+            color: var(--text-color);
+            text-align: center;
+            width: 100px;
+        }
+
+        a {
+            color: #5FC3E4;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" />
+        <h1>{{ device.device_name|capitalize }} - LECOB 50</h1>
+    </header>
+
+    <div class="dashboard-container">
+        <div class="info-panel">
+            <p><strong>Tiempo Encendido:</strong> <span id="onTime">--</span> s</p>
+            <p><strong>Tiempo Apagado:</strong> <span id="offTime">--</span> s</p>
+        </div>
+        <div class="gauge-container" id="lecobTimeGaugeContainer">
+            <div id="lecobTimeGaugeText" class="gauge-text">0 s</div>
+        </div>
+        <div class="info-panel">
+            <p><strong>Estado Actual:</strong> <span id="lecobStatus">--</span></p>
+        </div>
+    </div>
+
+    <footer>
+        2025 - LC Projects
+    </footer>
+
+    <script>
+    let lecobTimeGauge = new ProgressBar.Circle('#lecobTimeGaugeContainer', {
+      color: '#FF5A5F',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500,
+      text: { value: '' },
+      from: { color: '#FF5A5F' },
+      to: { color: '#FF5A5F' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+      }
+    });
+
+    async function updateLecobData() {
+      try {
+        const resp = await fetch('{{ url_for("device_lecob50_data", device_name=device.device_name) }}');
+        const data = await resp.json();
+        // data esperado: { on_time, off_time, time_left, max_time, status }
+        const { on_time, off_time, time_left, max_time, status } = data;
+
+        document.getElementById('onTime').textContent = on_time + " s";
+        document.getElementById('offTime').textContent = off_time + " s";
+
+        let ratio = time_left / max_time;
+        if (ratio > 1) ratio = 1;
+        lecobTimeGauge.animate(ratio, { duration: 500 });
+        document.getElementById('lecobTimeGaugeText').textContent = time_left + " s";
+
+        document.getElementById('lecobStatus').textContent = status;
+      } catch (err) {
+        console.error("Error actualizando datos de LECOB 50:", err);
+      }
+    }
+    setInterval(updateLecobData, 5000);
+    updateLecobData();
+    </script>
+</body>
+</html>

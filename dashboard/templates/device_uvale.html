@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>{{ device.device_name|capitalize }} - UV ale</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
+    <style>
+        :root {
+            --body-bg: #1C242C;
+            --card-bg: #2A333B;
+            --card-border: #424F5B;
+            --accent: #D07B2C;
+            --text-color: #F0F0F0;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--body-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        header, footer {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+            header img {
+                height: 50px;
+                vertical-align: middle;
+                margin-right: 10px;
+            }
+
+            header h1 {
+                display: inline;
+                color: var(--accent);
+            }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
+        }
+
+        .panel-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background-color: #343F48;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+            flex: 1 1 250px;
+        }
+
+        .gauge-container {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1rem;
+            color: var(--text-color);
+            text-align: center;
+            width: 100px;
+        }
+
+        .chart-container {
+            width: 300px;
+            height: 200px;
+            margin: 0 auto;
+        }
+
+        a {
+            color: #5FC3E4;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" />
+        <h1>{{ device.device_name|capitalize }} - UV ale</h1>
+    </header>
+
+    <div class="dashboard-container">
+        <div class="panel-row">
+            <!-- Panel: Distancia -->
+            <div class="panel">
+                <h3>Distancia (cm)</h3>
+                <div class="gauge-container" id="distanceGaugeContainer">
+                    <div id="distanceGaugeText" class="gauge-text">0 cm</div>
+                </div>
+            </div>
+            <!-- Panel: Tiempo de Operación -->
+            <div class="panel">
+                <h3>Tiempo de Operación</h3>
+                <div class="gauge-container" id="opTimeGaugeContainer">
+                    <div id="opTimeGaugeText" class="gauge-text">0 s</div>
+                </div>
+            </div>
+            <!-- Panel: Puerta y Luz UV -->
+            <div class="panel">
+                <h3>Puerta / Luz UV</h3>
+                <p>Puerta: <span id="doorState">--</span></p>
+                <p>Luz UV: <span id="uvState">--</span></p>
+            </div>
+        </div>
+
+        <div class="panel-row">
+            <!-- Gráfico de Humedad -->
+            <div class="panel">
+                <h3>Humedad (%)</h3>
+                <div class="chart-container">
+                    <canvas id="humChart"></canvas>
+                </div>
+            </div>
+            <!-- Gráfico de Temperatura -->
+            <div class="panel">
+                <h3>Temperatura (°C)</h3>
+                <div class="chart-container">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3>Estado Actual</h3>
+            <p id="uvStatus">--</p>
+        </div>
+    </div>
+
+    <footer>
+        2025 - LC Projects
+    </footer>
+
+    <script>
+    // Gauge para Distancia (suponiendo un rango de 0 a 100 cm)
+    let distanceGauge = new ProgressBar.Circle('#distanceGaugeContainer', {
+      color: '#5FC3E4',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500,
+      text: { value: '' },
+      from: { color: '#5FC3E4' },
+      to: { color: '#5FC3E4' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+      }
+    });
+
+    // Gauge para Tiempo de Operación
+    let opTimeGauge = new ProgressBar.Circle('#opTimeGaugeContainer', {
+      color: '#FF5A5F',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500,
+      text: { value: '' },
+      from: { color: '#FF5A5F' },
+      to: { color: '#FF5A5F' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+      }
+    });
+
+    // Gráficos de Humedad y Temperatura
+    let humChart = new Chart(document.getElementById('humChart').getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Humedad (%)', data: [], borderColor: '#5FC3E4', fill: false, tension: 0.1 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { ticks: { color: "#FFFFFF" }, title: { display: true, text: 'Hora', color: "#FFFFFF" } },
+                  y: { ticks: { color: "#FFFFFF" }, title: { display: true, text: 'Humedad (%)', color: "#FFFFFF" } } },
+        plugins: { legend: { labels: { color: "#FFFFFF" } } }
+      }
+    });
+    let tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Temperatura (°C)', data: [], borderColor: '#FF5A5F', fill: false, tension: 0.1 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { ticks: { color: "#FFFFFF", callback: function(value, index, ticks) {
+                    let label = this.getLabelForValue(value);
+                    return label.substring(11,16);
+                  }, maxTicksLimit: 6 }, title: { display: true, text: 'Hora', color: "#FFFFFF" } },
+                  y: { ticks: { color: "#FFFFFF" }, title: { display: true, text: '°C', color: "#FFFFFF" } } },
+        plugins: { legend: { labels: { color: "#FFFFFF" } } }
+      }
+    });
+
+    async function updateUVAleData() {
+      try {
+        const resp = await fetch('{{ url_for("device_uvale_data", device_name=device.device_name) }}');
+        const data = await resp.json();
+        // data esperado: { distance, time_left, max_time, door_state, uv_state, hums, temps, timestamps, status }
+        const { distance, time_left, max_time, door_state, uv_state, hums, temps, timestamps, status } = data;
+
+        // Actualizar gauge de distancia
+        let ratioDistance = distance / 100;
+        if (ratioDistance > 1) ratioDistance = 1;
+        distanceGauge.animate(ratioDistance, { duration: 500 });
+        document.getElementById('distanceGaugeText').textContent = distance + " cm";
+
+        // Actualizar gauge de tiempo de operación
+        let ratioOpTime = time_left / max_time;
+        if (ratioOpTime > 1) ratioOpTime = 1;
+        opTimeGauge.animate(ratioOpTime, { duration: 500 });
+        document.getElementById('opTimeGaugeText').textContent = time_left + " s";
+
+        // Actualizar gráficos
+        humChart.data.labels = timestamps;
+        humChart.data.datasets[0].data = hums;
+        humChart.update();
+
+        tempChart.data.labels = timestamps;
+        tempChart.data.datasets[0].data = temps;
+        tempChart.update();
+
+        // Actualizar indicadores de puerta y UV
+        document.getElementById('doorState').textContent = door_state;
+        document.getElementById('uvState').textContent = uv_state;
+        // Actualizar estado
+        document.getElementById('uvStatus').textContent = status;
+      } catch (err) {
+        console.error("Error al actualizar datos de UV ale:", err);
+      }
+    }
+
+    setInterval(updateUVAleData, 5000);
+    updateUVAleData();
+    </script>
+</body>
+</html>
