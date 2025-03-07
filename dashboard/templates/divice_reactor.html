@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8" />
     <title>{{ device.device_name|capitalize }} - Reactor Quitosano</title>
-    <link rel="preconnect" href="https://fonts.gstatic.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Incluimos Chart.js y ProgressBar.js -->
+    <!-- Incluimos Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
     <style>
         :root {
             --body-bg: #1C242C;
@@ -16,9 +15,7 @@
             --card-border: #424F5B;
             --accent: #D07B2C;
             --text-color: #F0F0F0;
-            --chart-color: #5FC3E4;
-            --gauge-speed-color: #FFC45F;
-            --gauge-time-color: #FF5A5F;
+            --text-secondary: #B0B0B0;
         }
 
         body {
@@ -29,7 +26,7 @@
             padding: 20px;
         }
 
-        header, footer {
+        header {
             text-align: center;
             margin-bottom: 20px;
         }
@@ -45,7 +42,7 @@
                 color: var(--accent);
             }
 
-        .dashboard-container {
+        .dashboard {
             max-width: 1200px;
             margin: 0 auto;
             background-color: var(--card-bg);
@@ -55,49 +52,24 @@
             box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
         }
 
-        .panel-row {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
+        .info {
             margin-bottom: 20px;
-        }
-
-        .panel {
-            background-color: #343F48;
-            border-radius: 6px;
-            padding: 15px;
-            text-align: center;
-            flex: 1 1 250px;
-        }
-
-        .gauge-container {
-            width: 150px;
-            height: 150px;
-            margin: 0 auto;
-            position: relative;
-        }
-
-        .gauge-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1rem;
-            color: var(--text-color);
-            text-align: center;
-            width: 100px;
         }
 
         .chart-container {
             width: 100%;
             height: 300px;
-            margin-top: 20px;
         }
 
         a {
             color: #5FC3E4;
             text-decoration: none;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--text-secondary);
         }
     </style>
 </head>
@@ -107,32 +79,18 @@
         <h1>{{ device.device_name|capitalize }} - Reactor Quitosano</h1>
     </header>
 
-    <div class="dashboard-container">
-        <div class="panel-row">
-            <!-- Panel: Velocidad de Agitación -->
-            <div class="panel">
-                <h3>Velocidad de Agitación</h3>
-                <div class="gauge-container" id="speedGaugeContainer">
-                    <div id="speedGaugeText" class="gauge-text">0 rpm</div>
-                </div>
-            </div>
-            <!-- Panel: Tiempo Restante -->
-            <div class="panel">
-                <h3>Tiempo Restante</h3>
-                <div class="gauge-container" id="timeGaugeContainer">
-                    <div id="timeGaugeText" class="gauge-text">0 s</div>
-                </div>
-            </div>
-            <!-- Panel: Estado Actual -->
-            <div class="panel">
-                <h3>Estado Actual</h3>
-                <div id="stateDisplay" style="font-size:1.2rem; margin-top:10px;">--</div>
-            </div>
+    <div class="dashboard">
+        <div class="info">
+            <p><strong>Estado Actual:</strong> {{ device.last_status }}</p>
+            <p><strong>Datos simulados:</strong> Temperatura, velocidad de agitación y tiempo restante.</p>
         </div>
-        <!-- Gráfica de Temperatura -->
         <div class="chart-container">
-            <canvas id="tempChart"></canvas>
+            <canvas id="reactorTempChart"></canvas>
         </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="{{ url_for('home') }}">Volver</a>
     </div>
 
     <footer>
@@ -140,15 +98,16 @@
     </footer>
 
     <script>
-    // Inicializamos la gráfica de temperatura con Chart.js
-    let tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), {
+    // Inicializar la gráfica de temperatura
+    const ctx = document.getElementById('reactorTempChart').getContext('2d');
+    const reactorTempChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: [],
+        labels: [], // se actualizarán
         datasets: [{
           label: 'Temperatura (°C)',
           data: [],
-          borderColor: var(--chart-color) || '#5FC3E4',
+          borderColor: '#5FC3E4',
           fill: false,
           tension: 0.1
         }]
@@ -162,7 +121,7 @@
               color: "#FFFFFF",
               callback: function(value, index, ticks) {
                 let label = this.getLabelForValue(value);
-                return label.substring(11,16); // HH:MM
+                return label.substring(11,16); // Muestra HH:MM
               },
               maxTicksLimit: 6
             },
@@ -183,70 +142,21 @@
       }
     });
 
-    // Configuraciones de gauges con ProgressBar.js
-    let speedGauge = new ProgressBar.Circle('#speedGaugeContainer', {
-      color: '#FFC45F',
-      strokeWidth: 8,
-      trailColor: '#2A333B',
-      trailWidth: 8,
-      easing: 'easeInOut',
-      duration: 500,
-      text: { value: '' },
-      from: { color: '#FFC45F' },
-      to: { color: '#FFC45F' },
-      step: function(state, circle) {
-        circle.path.setAttribute('stroke', state.color);
-      }
-    });
-
-    let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
-      color: '#FF5A5F',
-      strokeWidth: 8,
-      trailColor: '#2A333B',
-      trailWidth: 8,
-      easing: 'easeInOut',
-      duration: 500,
-      text: { value: '' },
-      from: { color: '#FF5A5F' },
-      to: { color: '#FF5A5F' },
-      step: function(state, circle) {
-        circle.path.setAttribute('stroke', state.color);
-      }
-    });
-
-    // Función para actualizar la data del Reactor Quitosano
+    // Función para actualizar la gráfica mediante fetch
     async function updateReactorData() {
       try {
         const resp = await fetch('{{ url_for("device_reactor_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // data esperado: { timestamps:[], temps:[], speed: valor, max_speed: valor, time_left: valor, max_time: valor, state: "Desmineralización running", ... }
-        const { timestamps, temps, speed, max_speed, time_left, max_time, state } = data;
-
-        // Actualizar gráfica de temperatura
-        tempChart.data.labels = timestamps;
-        tempChart.data.datasets[0].data = temps;
-        tempChart.update();
-
-        // Actualizar gauge de velocidad
-        let ratioSpeed = speed / max_speed;
-        if (ratioSpeed > 1) ratioSpeed = 1;
-        speedGauge.animate(ratioSpeed, { duration: 500 });
-        document.getElementById('speedGaugeText').textContent = speed.toFixed(0) + " rpm";
-
-        // Actualizar gauge de tiempo restante
-        let ratioTime = time_left / max_time;
-        if (ratioTime > 1) ratioTime = 1;
-        timeGauge.animate(ratioTime, { duration: 500 });
-        document.getElementById('timeGaugeText').textContent = time_left + " s";
-
-        // Actualizar estado
-        document.getElementById('stateDisplay').textContent = state;
-
+        // Se espera que data tenga: { timestamps, temps, speeds, time_lefts, max_times, states }
+        reactorTempChart.data.labels = data.timestamps;
+        reactorTempChart.data.datasets[0].data = data.temps;
+        reactorTempChart.update();
       } catch (err) {
-        console.error("Error actualizando datos del Reactor Quitosano:", err);
+        console.error("Error al actualizar datos del Reactor:", err);
       }
     }
 
+    // Actualizar cada 5 segundos
     setInterval(updateReactorData, 5000);
     updateReactorData();
     </script>

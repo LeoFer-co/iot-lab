@@ -135,8 +135,22 @@ def device_detail(device_name):
         cursor.execute("SELECT * FROM measurements_reactor ORDER BY id DESC LIMIT 30")
         rows = cursor.fetchall()
         conn.close()
-        # Podrías procesar rows si deseas
-        return render_template("device_reactor.html", device=device)
+        timestamps, temps, speeds, time_lefts, max_times, states = [], [], [], [], [], []
+        for r in reversed(rows):
+            timestamps.append(r["timestamp"])
+            temps.append(r["temp"])
+            speeds.append(r["speed"])
+            time_lefts.append(r["time_left"])
+            max_times.append(r["max_time"])
+            states.append(r["state"])
+        return render_template("device_reactor.html",
+                               device=device,
+                               timestamps=timestamps,
+                               temps=temps,
+                               speeds=speeds,
+                               time_lefts=time_lefts,
+                               max_times=max_times,
+                               states=states)
 
     elif device_type == "lc_shaker":
         cursor.execute("SELECT * FROM measurements_lc_shaker ORDER BY id DESC LIMIT 30")
@@ -223,7 +237,6 @@ def device_microdos_data(device_name):
 def device_reactor_data(device_name):
     conn = get_db()
     cursor = conn.cursor()
-    # Verificar que el dispositivo exista y sea de tipo reactor
     cursor.execute("SELECT * FROM devices WHERE device_name=? AND device_type='reactor'", (device_name,))
     dev = cursor.fetchone()
     if not dev:
@@ -233,6 +246,7 @@ def device_reactor_data(device_name):
     cursor.execute("SELECT * FROM measurements_reactor ORDER BY id DESC LIMIT 30")
     rows = cursor.fetchall()
     conn.close()
+
     timestamps, temps, speeds, time_lefts, max_times, states = [], [], [], [], [], []
     for r in reversed(rows):
         timestamps.append(r["timestamp"])
@@ -241,6 +255,7 @@ def device_reactor_data(device_name):
         time_lefts.append(r["time_left"])
         max_times.append(r["max_time"])
         states.append(r["state"])
+
     return jsonify({
         "timestamps": timestamps,
         "temps": temps,
