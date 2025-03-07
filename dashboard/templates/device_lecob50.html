@@ -33,7 +33,7 @@
         }
 
         .dashboard-container {
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
@@ -85,6 +85,7 @@
         a {
             color: #5FC3E4;
             text-decoration: none;
+            font-size: 1.1rem;
         }
 
         footer {
@@ -95,10 +96,11 @@
     </style>
 </head>
 <body>
-    <h1>{{ device.device_name|capitalize }} - LECOB 50</h1>
+    <header>
+        <h1>{{ device.device_name|capitalize }} - LECOB 50</h1>
+    </header>
 
     <div class="dashboard-container">
-        <!-- Fila 1: Tiempos de encendido/apagado y estado -->
         <div class="panel-row">
             <!-- Panel: Tiempo Encendido -->
             <div class="panel">
@@ -116,19 +118,20 @@
                 <p id="lecobStatus">--</p>
             </div>
         </div>
-
-        <!-- Fila 2: Gauge para tiempo restante -->
         <div class="panel-row">
+            <!-- Panel: Gauge de Tiempo Restante -->
             <div class="panel">
                 <h3>Tiempo Restante</h3>
                 <div class="gauge-container" id="lecobTimeGaugeContainer">
                     <div id="lecobTimeGaugeText" class="gauge-text">0 s</div>
                 </div>
-                <p style="margin-top:10px;font-size:0.9rem;">
-                    <span id="maxTimeLabel">max: 0 s</span>
-                </p>
+                <p style="margin-top:10px;font-size:0.9rem;" id="maxTimeLabel">max: 0 s</p>
             </div>
         </div>
+    </div>
+
+    <div style="text-align:center; margin-top:20px;">
+        <a href="{{ url_for('home') }}">Volver</a>
     </div>
 
     <footer>
@@ -136,61 +139,55 @@
     </footer>
 
     <script>
-  // Creamos el gauge para el tiempo restante
-  let lecobTimeGauge = new ProgressBar.Circle('#lecobTimeGaugeContainer', {
-    color: '#FF5A5F',
-    strokeWidth: 8,
-    trailColor: '#2A333B',
-    trailWidth: 8,
-    easing: 'easeInOut',
-    duration: 500,
-    text: { value: '' },
-    from: { color: '#FF5A5F' },
-    to: { color: '#FF5A5F' },
-    step: function(state, circle) {
-      circle.path.setAttribute('stroke', state.color);
-    }
-  });
-
-  async function updateLecobData() {
-    try {
-      const resp = await fetch('{{ url_for("device_lecob50_data", device_name=device.device_name) }}');
-      const data = await resp.json();
-      // data esperado: { on_time, off_time, time_left, max_time, status }
-
-      if (data.error) {
-        // Si no hay datos, o el dispositivo no existe
-        document.getElementById('onTime').textContent = "-- s";
-        document.getElementById('offTime').textContent = "-- s";
-        document.getElementById('lecobStatus').textContent = "Desconectado";
-        lecobTimeGauge.animate(0, { duration: 500 });
-        document.getElementById('lecobTimeGaugeText').textContent = "0 s";
-        document.getElementById('maxTimeLabel').textContent = "max: 0 s";
-        return;
+    let lecobTimeGauge = new ProgressBar.Circle('#lecobTimeGaugeContainer', {
+      color: '#FF5A5F',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500,
+      text: { value: '' },
+      from: { color: '#FF5A5F' },
+      to: { color: '#FF5A5F' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
       }
+    });
 
-      const { on_time, off_time, time_left, max_time, status } = data;
+    async function updateLecobData() {
+      try {
+        const resp = await fetch('{{ url_for("device_lecob50_data", device_name=device.device_name) }}');
+        const data = await resp.json();
+        // data esperado: { on_time, off_time, time_left, max_time, status }
+        if (data.error) {
+          document.getElementById('onTime').textContent = "-- s";
+          document.getElementById('offTime').textContent = "-- s";
+          document.getElementById('lecobStatus').textContent = "Desconectado";
+          lecobTimeGauge.animate(0, { duration: 500 });
+          document.getElementById('lecobTimeGaugeText').textContent = "0 s";
+          document.getElementById('maxTimeLabel').textContent = "max: 0 s";
+          return;
+        }
+        const { on_time, off_time, time_left, max_time, status } = data;
+        document.getElementById('onTime').textContent = on_time + " s";
+        document.getElementById('offTime').textContent = off_time + " s";
+        document.getElementById('lecobStatus').textContent = status;
 
-      document.getElementById('onTime').textContent = on_time + " s";
-      document.getElementById('offTime').textContent = off_time + " s";
-      document.getElementById('lecobStatus').textContent = status;
-
-      let ratio = 0;
-      if (max_time > 0) {
-        ratio = time_left / max_time;
-        if (ratio > 1) ratio = 1;
+        let ratio = 0;
+        if (max_time > 0) {
+          ratio = time_left / max_time;
+          if (ratio > 1) ratio = 1;
+        }
+        lecobTimeGauge.animate(ratio, { duration: 500 });
+        document.getElementById('lecobTimeGaugeText').textContent = time_left + " s";
+        document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
+      } catch (err) {
+        console.error("Error actualizando datos de LECOB 50:", err);
       }
-      lecobTimeGauge.animate(ratio, { duration: 500 });
-      document.getElementById('lecobTimeGaugeText').textContent = time_left + " s";
-      document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
-
-    } catch (err) {
-      console.error("Error actualizando datos de LECOB 50:", err);
     }
-  }
 
-  setInterval(updateLecobData, 5000);
-  updateLecobData();
+    setInterval(updateLecobData, 5000);
+    updateLecobData();
     </script>
 </body>
 </html>
