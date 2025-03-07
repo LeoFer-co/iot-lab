@@ -6,8 +6,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Incluimos Chart.js -->
+    <!-- Chart.js para la gráfica de temperatura -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- ProgressBar.js para gauges radiales -->
+    <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
+
     <style>
         :root {
             --body-bg: #1C242C;
@@ -16,6 +19,9 @@
             --accent: #D07B2C;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
+            --gauge-speed-color: #FFC45F; /* color para gauge de velocidad */
+            --gauge-time-color: #FF5A5F; /* color para gauge de tiempo */
+            --chart-temp-color: #5FC3E4; /* color para gráfica de temperatura */
         }
 
         body {
@@ -52,8 +58,44 @@
             box-shadow: 1px 1px 4px rgba(0,0,0,0.2);
         }
 
-        .info {
+        .panel-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
             margin-bottom: 20px;
+        }
+
+        .panel {
+            background-color: #343F48;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+            flex: 1 1 250px;
+        }
+
+            .panel h3 {
+                margin-bottom: 10px;
+                font-size: 1.1rem;
+                color: var(--accent);
+            }
+
+        .gauge-container {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1rem;
+            color: var(--text-color);
+            text-align: center;
+            width: 100px;
         }
 
         .chart-container {
@@ -80,10 +122,33 @@
     </header>
 
     <div class="dashboard">
-        <div class="info">
-            <p><strong>Estado Actual:</strong> {{ device.last_status }}</p>
-            <p><strong>Datos simulados:</strong> Temperatura, velocidad de agitación y tiempo restante.</p>
+        <!-- Fila con 3 paneles: Velocidad, Tiempo Restante, Estado Actual -->
+        <div class="panel-row">
+            <!-- Velocidad -->
+            <div class="panel">
+                <h3>Velocidad (rpm)</h3>
+                <div class="gauge-container" id="speedGaugeContainer">
+                    <div id="speedGaugeText" class="gauge-text">0 rpm</div>
+                </div>
+            </div>
+            <!-- Tiempo Restante -->
+            <div class="panel">
+                <h3>Tiempo Restante</h3>
+                <div class="gauge-container" id="timeGaugeContainer">
+                    <div id="timeGaugeText" class="gauge-text">0 s</div>
+                </div>
+                <p style="margin-top:10px;font-size:0.9rem;">
+                    <span id="maxTimeLabel">max: 0 s</span>
+                </p>
+            </div>
+            <!-- Estado Actual -->
+            <div class="panel">
+                <h3>Estado Actual</h3>
+                <div id="reactorState" style="font-size:1.2rem; margin-top:10px;">--</div>
+            </div>
         </div>
+
+        <!-- Gráfica de Temperatura -->
         <div class="chart-container">
             <canvas id="reactorTempChart"></canvas>
         </div>
@@ -98,16 +163,16 @@
     </footer>
 
     <script>
-    // Inicializar la gráfica de temperatura
-    const ctx = document.getElementById('reactorTempChart').getContext('2d');
-    const reactorTempChart = new Chart(ctx, {
+    // 1) Gráfica de Temperatura (Chart.js)
+    const tempCtx = document.getElementById('reactorTempChart').getContext('2d');
+    const reactorTempChart = new Chart(tempCtx, {
       type: 'line',
       data: {
-        labels: [], // se actualizarán
+        labels: [],
         datasets: [{
           label: 'Temperatura (°C)',
           data: [],
-          borderColor: '#5FC3E4',
+          borderColor: getComputedStyle(document.documentElement).getPropertyValue('--chart-temp-color').trim() || '#5FC3E4',
           fill: false,
           tension: 0.1
         }]
@@ -121,7 +186,8 @@
               color: "#FFFFFF",
               callback: function(value, index, ticks) {
                 let label = this.getLabelForValue(value);
-                return label.substring(11,16); // Muestra HH:MM
+                // Mostrar solo HH:MM de la fecha/hora
+                return label.substring(11,16);
               },
               maxTicksLimit: 6
             },
@@ -142,22 +208,87 @@
       }
     });
 
-    // Función para actualizar la gráfica mediante fetch
+    // 2) Gauges radiales para Velocidad y Tiempo
+    // Speed gauge (max 1000 rpm)
+    let speedGauge = new ProgressBar.Circle('#speedGaugeContainer', {
+      color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-speed-color').trim() || '#FFC45F',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500,
+      text: { value: '' },
+      from: { color: '#FFC45F' },
+      to: { color: '#FFC45F' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+      }
+    });
+
+    // Time gauge
+    let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
+      color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-time-color').trim() || '#FF5A5F',
+      strokeWidth: 8,
+      trailColor: '#2A333B',
+      trailWidth: 8,
+      easing: 'easeInOut',
+      duration: 500,
+      text: { value: '' },
+      from: { color: '#FF5A5F' },
+      to: { color: '#FF5A5F' },
+      step: function(state, circle) {
+        circle.path.setAttribute('stroke', state.color);
+      }
+    });
+
+    // Función para actualizar en tiempo real
     async function updateReactorData() {
       try {
+        // Llamamos al endpoint /device/<device_name>/reactor_data
         const resp = await fetch('{{ url_for("device_reactor_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // Se espera que data tenga: { timestamps, temps, speeds, time_lefts, max_times, states }
+        // data => { timestamps, temps, speeds, time_lefts, max_times, states }
+
+        // Actualizar la gráfica de Temperatura
         reactorTempChart.data.labels = data.timestamps;
         reactorTempChart.data.datasets[0].data = data.temps;
         reactorTempChart.update();
+
+        // Obtenemos el índice de la última medición
+        const lastIndex = data.temps.length - 1;
+        if (lastIndex < 0) {
+          console.log("No hay datos en measurements_reactor.");
+          return;
+        }
+
+        // Velocidad
+        const currentSpeed = data.speeds[lastIndex] || 0;
+        let ratioSpeed = currentSpeed / 1000.0; // max 1000 rpm
+        if (ratioSpeed > 1) ratioSpeed = 1;
+        speedGauge.animate(ratioSpeed, { duration: 500 });
+        document.getElementById('speedGaugeText').textContent = currentSpeed.toFixed(0) + " rpm";
+
+        // Tiempo
+        const currentTimeLeft = data.time_lefts[lastIndex] || 0;
+        const currentMaxTime  = data.max_times[lastIndex] || 60;
+        let ratioTime = currentTimeLeft / currentMaxTime;
+        if (ratioTime > 1) ratioTime = 1;
+        timeGauge.animate(ratioTime, { duration: 500 });
+        document.getElementById('timeGaugeText').textContent = currentTimeLeft + " s";
+        document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
+
+        // Estado
+        const currentState = data.states[lastIndex] || "inactivo";
+        document.getElementById('reactorState').textContent = currentState;
+
       } catch (err) {
         console.error("Error al actualizar datos del Reactor:", err);
       }
     }
 
-    // Actualizar cada 5 segundos
+    // Actualizar cada 5s
     setInterval(updateReactorData, 5000);
+    // Llamada inicial
     updateReactorData();
     </script>
 </body>
