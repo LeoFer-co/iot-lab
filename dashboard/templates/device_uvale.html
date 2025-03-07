@@ -88,12 +88,12 @@
         }
         /* Barra horizontal rotada para crecer de abajo hacia arriba */
         .vertical-bar-container {
-            width: 150px; /* largo total = 150px, coincide con la altura real */
+            width: 150px; /* largo total = 150px */
             height: 30px; /* grosor = 30px */
             position: absolute;
             left: 50%;
-            bottom: 0;
-            transform: translateX(-50%) rotate(270deg);
+            top: 50%; /* En lugar de bottom:0, anclamos al centro vertical */
+            transform: translate(-50%, -50%) rotate(270deg);
             transform-origin: center center;
         }
 
