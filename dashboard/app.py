@@ -32,24 +32,34 @@ def home():
 @app.route("/devices_data")
 def devices_data():
     """
-    Devuelve en JSON la lista de dispositivos, mezclando:
-      - Lo que hay en la tabla 'devices', ordenado por 'position'
-      - Los 6 dispositivos predefinidos (si alguno no está en DB, se crea "virtualmente" como desconectado)
+    Devuelve en JSON la lista de dispositivos, ordenado por 'position'.
+    Antes, se asegura de que todos los PREDEFINED_DEVICES existan en la DB,
+    para evitar placeholders.
     """
     conn = get_db()
     cursor = conn.cursor()
-    # Ordenamos por la columna "position"
+
+    # Aseguramos que cada dispositivo predefinido exista en la DB con position=9999 por defecto
+    for (dev_name, dev_type) in PREDEFINED_DEVICES:
+        cursor.execute("SELECT COUNT(*) FROM devices WHERE device_name=?", (dev_name,))
+        c = cursor.fetchone()[0]
+        if c == 0:
+            cursor.execute("""
+                INSERT INTO devices (device_name, device_type, last_status, position)
+                VALUES (?, ?, ?, ?)
+            """, (dev_name, dev_type, "No data", 9999))
+    conn.commit()
+
+    # Ahora consultamos todos los dispositivos, ordenados por 'position'
     cursor.execute("SELECT * FROM devices ORDER BY position ASC")
     rows = cursor.fetchall()
     conn.close()
 
-    db_devices = {}
-    db_list = []
     now = datetime.now()
+    final_list = []
     for dev in rows:
         dev_dict = dict(dev)
-        device_name = dev_dict["device_name"]
-        # Lógica para determinar el estado final (offline o el último estado)
+        # Lógica para determinar 'status_final' (offline si pasa OFFLINE_THRESHOLD)
         try:
             last_seen_str = dev_dict["last_seen"]  # "YYYY-MM-DD HH:MM:SS"
             last_dt = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
@@ -60,21 +70,9 @@ def devices_data():
                 dev_dict["status_final"] = dev_dict["last_status"]
         except Exception:
             dev_dict["status_final"] = "Desconocido"
-        db_devices[device_name] = dev_dict
-        db_list.append(dev_dict)
-    
-    # Creamos la lista final: primero los dispositivos en DB (ordenados por position)
-    final_list = db_list[:]
-    # Luego, para los predefinidos que aún no están en DB, agregamos placeholders
-    for (dev_name, dev_type) in PREDEFINED_DEVICES:
-        if dev_name not in db_devices:
-            final_list.append({
-                "device_name": dev_name,
-                "device_type": dev_type,
-                "last_status": "No data",
-                "last_seen": "1970-01-01 00:00:00",
-                "status_final": "Desconectado"
-            })
+
+        final_list.append(dev_dict)
+
     return jsonify(final_list)
 
 @app.route("/device/<device_name>")
