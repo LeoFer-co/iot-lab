@@ -17,6 +17,9 @@
             --accent: #D07B2C;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
+            /* Colores de ejemplo para "encendido" y "apagado" */
+            --encendido-bg: #5FC36F;
+            --apagado-bg: #B0B0B0;
         }
 
         body {
@@ -57,7 +60,6 @@
             padding: 15px;
             text-align: center;
             flex: 1 1 250px;
-            position: relative;
         }
 
             .panel h3 {
@@ -66,11 +68,41 @@
                 font-size: 1.1rem;
             }
 
-        .value-text {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin: 10px 0;
-            transition: color 0.4s ease;
+        /* Círculo para mostrar "tiempo encendido" y "tiempo apagado" */
+        .time-circle {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #FFF;
+        }
+
+            /* Por defecto, color verde para "encendido" */
+            .time-circle.on {
+                background-color: var(--encendido-bg);
+            }
+
+            /* Por defecto, color gris para "apagado" */
+            .time-circle.off {
+                background-color: var(--apagado-bg);
+            }
+
+        /* Círculo para el estado actual */
+        .status-circle {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #FFF;
+            text-align: center;
         }
 
         /* Gauge de tiempo restante */
@@ -103,23 +135,6 @@
             margin-top: 20px;
             color: var(--text-secondary);
         }
-
-        /* Animación fade-in-up */
-        .fade-in-up {
-            animation: fadeInUp 0.6s ease forwards;
-        }
-
-        @keyframes fadeInUp {
-            0% {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            100% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
     </style>
 </head>
 <body>
@@ -132,19 +147,28 @@
             <!-- Panel: Tiempo Encendido -->
             <div class="panel">
                 <h3>Tiempo Encendido</h3>
-                <p id="onTime" class="value-text">-- s</p>
+                <!-- Círculo con color para representar "encendido" -->
+                <div class="time-circle on" id="onTimeCircle">
+                    <span id="onTime">--</span>
+                </div>
             </div>
+
             <!-- Panel: Tiempo Apagado -->
             <div class="panel">
                 <h3>Tiempo Apagado</h3>
-                <p id="offTime" class="value-text">-- s</p>
+                <!-- Círculo con color para representar "apagado" -->
+                <div class="time-circle off" id="offTimeCircle">
+                    <span id="offTime">--</span>
+                </div>
             </div>
+
             <!-- Panel: Estado Actual -->
             <div class="panel">
                 <h3>Estado Actual</h3>
-                <p id="lecobStatus" class="value-text">--</p>
+                <div class="status-circle" id="lecobStatusCircle">--</div>
             </div>
         </div>
+
         <div class="panel-row">
             <!-- Panel: Gauge de Tiempo Restante -->
             <div class="panel">
@@ -182,26 +206,14 @@
       }
     });
 
-    // Función para animar el cambio de texto con fade-in-up
-    function updateValueAnimated(elementId, newValue) {
-      const el = document.getElementById(elementId);
-      // Removemos la clase para poder re-aplicarla y reiniciar la animación
-      el.classList.remove('fade-in-up');
-      // Forzamos reflow para reiniciar la animación
-      void el.offsetWidth;
-      el.classList.add('fade-in-up');
-      // Actualizamos el texto
-      el.textContent = newValue;
-    }
-
-    // Función para asignar color al estado según el valor
+    // Función para asignar color al estado
     function getColorForStatus(status) {
-      // Ajusta los colores según tus posibles estados
+      // Ajusta según tus posibles estados
       switch(status.toLowerCase()) {
         case "idle":
           return "#B0B0B0"; // gris
         case "running":
-          return "#5FC3E4"; // azul claro
+          return "#5FC3E4"; // azul
         case "finalizado":
           return "#5FC36F"; // verde
         default:
@@ -209,42 +221,44 @@
       }
     }
 
+    // Actualiza la interfaz sin animaciones en texto
     async function updateLecobData() {
       try {
         const resp = await fetch('{{ url_for("device_lecob50_data", device_name=device.device_name) }}');
         const data = await resp.json();
         // data esperado: { on_time, off_time, time_left, max_time, status }
         if (data.error) {
-          updateValueAnimated('onTime', "-- s");
-          updateValueAnimated('offTime', "-- s");
-          updateValueAnimated('lecobStatus', "Desconectado");
+          // Si hay error, reseteamos todo
+          document.getElementById('onTime').textContent = "--";
+          document.getElementById('offTime').textContent = "--";
+          document.getElementById('lecobStatusCircle').textContent = "Desconectado";
+          document.getElementById('lecobStatusCircle').style.backgroundColor = "#B0B0B0";
           lecobTimeGauge.animate(0, { duration: 500 });
-          updateValueAnimated('lecobTimeGaugeText', "0 s");
-          updateValueAnimated('maxTimeLabel', "max: 0 s");
+          document.getElementById('lecobTimeGaugeText').textContent = "0 s";
+          document.getElementById('maxTimeLabel').textContent = "max: 0 s";
           return;
         }
 
         const { on_time, off_time, time_left, max_time, status } = data;
 
-        // Animación para tiempo encendido y apagado
-        updateValueAnimated('onTime', on_time + " s");
-        updateValueAnimated('offTime', off_time + " s");
+        // Actualiza los valores en los círculos de "encendido" y "apagado"
+        document.getElementById('onTime').textContent = on_time + "s";
+        document.getElementById('offTime').textContent = off_time + "s";
 
-        // Estado actual con color dinámico
-        const statusEl = document.getElementById('lecobStatus');
-        statusEl.style.color = getColorForStatus(status);
-        updateValueAnimated('lecobStatus', status);
+        // Estado actual en un círculo con color dinámico
+        const statusCircle = document.getElementById('lecobStatusCircle');
+        statusCircle.textContent = status;
+        statusCircle.style.backgroundColor = getColorForStatus(status);
 
-        // Gauge para tiempo restante
+        // Tiempo restante (gauge)
         let ratio = 0;
         if (max_time > 0) {
           ratio = time_left / max_time;
           if (ratio > 1) ratio = 1;
         }
         lecobTimeGauge.animate(ratio, { duration: 500 });
-        updateValueAnimated('lecobTimeGaugeText', time_left + " s");
-        updateValueAnimated('maxTimeLabel', "max: " + max_time + " s");
-
+        document.getElementById('lecobTimeGaugeText').textContent = time_left + " s";
+        document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
       } catch (err) {
         console.error("Error actualizando datos de LECOB 50:", err);
       }
