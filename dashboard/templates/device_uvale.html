@@ -124,11 +124,20 @@
             text-align: center;
             width: 100px;
         }
+
         /* Aumentamos el tamaño de las gráficas */
         .chart-container {
             width: 400px; /* más ancho */
             height: 250px; /* más alto */
             margin: 0 auto;
+        }
+
+        /* Ajuste para pantallas pequeñas: se adapta el tamaño del contenedor de gráficos */
+        @media (max-width: 600px) {
+            .chart-container {
+                width: 100%;
+                height: 250px;
+            }
         }
 
         .indicator {
@@ -152,8 +161,8 @@
     </style>
 </head>
 <body>
+    <!-- Se eliminó el logo del header -->
     <header>
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" />
         <h1>{{ device.device_name|capitalize }} - UV ale</h1>
     </header>
 
