@@ -1,6 +1,11 @@
 import paho.mqtt.client as mqtt
 import sqlite3
 import json
+from datetime import datetime, timedelta
+
+def local_timestamp():
+    # Ajusta la hora restando 5 horas a la hora UTC
+    return (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
 
 DB_PATH = "data/data.db"
 
@@ -25,7 +30,6 @@ try:
     cursor.execute("ALTER TABLE devices ADD COLUMN position INTEGER DEFAULT 0")
     conn.commit()
 except sqlite3.OperationalError as e:
-    # Ignoramos el error si la columna ya existe
     if "duplicate column name" not in str(e).lower():
         print("Error al agregar la columna 'position':", e)
 
@@ -110,14 +114,15 @@ cursor.execute('''
 conn.commit()
 
 def update_device(device_name, device_type, last_status):
+    current_time = local_timestamp()
     cursor.execute('''
-      INSERT INTO devices (device_name, device_type, last_status)
-      VALUES (?, ?, ?)
+      INSERT INTO devices (device_name, device_type, last_status, last_seen)
+      VALUES (?, ?, ?, ?)
       ON CONFLICT(device_name) DO UPDATE SET
-        device_type=excluded.device_type,
-        last_status=excluded.last_status,
-        last_seen=CURRENT_TIMESTAMP
-    ''', (device_name, device_type, last_status))
+        device_type = excluded.device_type,
+        last_status = excluded.last_status,
+        last_seen = excluded.last_seen
+    ''', (device_name, device_type, last_status, current_time))
     conn.commit()
 
 def on_connect(client, userdata, flags, rc):
@@ -136,9 +141,9 @@ def on_message(client, userdata, msg):
             hum  = data.get("hum", 0)
             pres = data.get("pres", 0)
             cursor.execute('''
-              INSERT INTO measurements_estacion (temp, hum, pres)
-              VALUES (?, ?, ?)
-            ''', (temp, hum, pres))
+              INSERT INTO measurements_estacion (timestamp, temp, hum, pres)
+              VALUES (?, ?, ?, ?)
+            ''', (local_timestamp(), temp, hum, pres))
             conn.commit()
             update_device(device_name, "estacion", "publicando")
         
@@ -147,9 +152,9 @@ def on_message(client, userdata, msg):
             flow_set  = data.get("flow_set", 0)
             time_left = data.get("time_left", 0)
             cursor.execute('''
-              INSERT INTO measurements_microdos (status, flow_set, time_left)
-              VALUES (?, ?, ?)
-            ''', (status, flow_set, time_left))
+              INSERT INTO measurements_microdos (timestamp, status, flow_set, time_left)
+              VALUES (?, ?, ?, ?)
+            ''', (local_timestamp(), status, flow_set, time_left))
             conn.commit()
             update_device(device_name, "microdos", status)
         
@@ -160,9 +165,9 @@ def on_message(client, userdata, msg):
             max_time = data.get("max_time", 60)
             state = data.get("state", "inactivo")
             cursor.execute('''
-              INSERT INTO measurements_reactor (temp, speed, time_left, max_time, state)
-              VALUES (?, ?, ?, ?, ?)
-            ''', (temp, speed, time_left, max_time, state))
+              INSERT INTO measurements_reactor (timestamp, temp, speed, time_left, max_time, state)
+              VALUES (?, ?, ?, ?, ?, ?)
+            ''', (local_timestamp(), temp, speed, time_left, max_time, state))
             conn.commit()
             update_device(device_name, "reactor", state)
         
@@ -175,9 +180,9 @@ def on_message(client, userdata, msg):
             max_time = data.get("max_time", 60)
             state = data.get("state", "idle")
             cursor.execute('''
-              INSERT INTO measurements_lc_shaker (speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state))
+              INSERT INTO measurements_lc_shaker (timestamp, speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (local_timestamp(), speed, amp_mayor, amp_menor, oscilaciones, time_left, max_time, state))
             conn.commit()
             update_device(device_name, "lc_shaker", state)
         
@@ -188,9 +193,9 @@ def on_message(client, userdata, msg):
             max_time = data.get("max_time", 60)
             status = data.get("status", "idle")
             cursor.execute('''
-              INSERT INTO measurements_lecob50 (on_time, off_time, time_left, max_time, status)
-              VALUES (?, ?, ?, ?, ?)
-            ''', (on_time, off_time, time_left, max_time, status))
+              INSERT INTO measurements_lecob50 (timestamp, on_time, off_time, time_left, max_time, status)
+              VALUES (?, ?, ?, ?, ?, ?)
+            ''', (local_timestamp(), on_time, off_time, time_left, max_time, status))
             conn.commit()
             update_device(device_name, "lecob50", status)
         
@@ -204,9 +209,9 @@ def on_message(client, userdata, msg):
             temp = data.get("temp", 0)
             status = data.get("status", "idle")
             cursor.execute('''
-              INSERT INTO measurements_uvale (distance, time_left, max_time, door_state, uv_state, hum, temp, status)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (distance, time_left, max_time, door_state, uv_state, hum, temp, status))
+              INSERT INTO measurements_uvale (timestamp, distance, time_left, max_time, door_state, uv_state, hum, temp, status)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (local_timestamp(), distance, time_left, max_time, door_state, uv_state, hum, temp, status))
             conn.commit()
             update_device(device_name, "uvale", status)
         
