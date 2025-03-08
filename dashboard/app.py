@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
@@ -55,11 +55,11 @@ def devices_data():
     rows = cursor.fetchall()
     conn.close()
 
-    now = datetime.now()
+    # Ajustamos la hora actual a la misma base local (UTC-5)
+    now = datetime.utcnow() - timedelta(hours=5)
     final_list = []
     for dev in rows:
         dev_dict = dict(dev)
-        # Lógica para determinar 'status_final' (offline si pasa OFFLINE_THRESHOLD)
         try:
             last_seen_str = dev_dict["last_seen"]  # "YYYY-MM-DD HH:MM:SS"
             last_dt = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
@@ -70,7 +70,6 @@ def devices_data():
                 dev_dict["status_final"] = dev_dict["last_status"]
         except Exception:
             dev_dict["status_final"] = "Desconocido"
-
         final_list.append(dev_dict)
 
     return jsonify(final_list)
@@ -87,12 +86,13 @@ def device_detail(device_name):
     cursor.execute("SELECT * FROM devices WHERE device_name=?", (device_name,))
     device = cursor.fetchone()
     if not device:
-        # No está en DB -> lo consideramos desconectado
         return f"El dispositivo '{device_name}' no tiene datos en la base. Desconectado.", 403
 
+    # Ajustamos la hora actual a la base local (UTC-5)
+    now = datetime.utcnow() - timedelta(hours=5)
     try:
         last_dt = datetime.strptime(device["last_seen"], "%Y-%m-%d %H:%M:%S")
-        diff = (datetime.now() - last_dt).total_seconds()
+        diff = (now - last_dt).total_seconds()
         if diff > OFFLINE_THRESHOLD:
             conn.close()
             return f"El dispositivo '{device_name}' está desconectado.", 403
