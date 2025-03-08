@@ -92,8 +92,8 @@ void loop() {
     }
   }
 
-  // Publicar cada 5 seg
-  if (millis() - lastPublish > 5000) {
+  // Publicar cada 1 seg
+  if (millis() - lastPublish > 1000) {
     lastPublish = millis();
     publishData();
   }

@@ -70,7 +70,6 @@
             text-align: center;
             margin-bottom: 20px;
         }
-
         /* Cuadrícula con 3 columnas fijas por defecto */
         .device-grid {
             display: grid;
@@ -100,7 +99,6 @@
             .device-card:hover {
                 transform: scale(1.03);
             }
-
         /* Diferenciamos los dispositivos desconectados */
         .offline-card {
             background-color: var(--offline-card-bg);
@@ -148,7 +146,6 @@
             padding: 10px 0;
             color: var(--text-secondary);
         }
-
         /* Clase fantasma para arrastre */
         .sortable-ghost {
             opacity: 0.6;
@@ -160,16 +157,13 @@
         <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" class="logo" />
         <h2 class="header-title">LC Projects - Dispositivos</h2>
     </header>
-
     <main>
         <h1>Dispositivos en la red</h1>
         <div class="device-grid" id="deviceGrid"></div>
     </main>
-
     <footer>
         2025 - LC Projects
     </footer>
-
     <script>
         const deviceGrid = document.getElementById('deviceGrid');
 
@@ -179,9 +173,13 @@
             cardDiv.classList.add('device-card');
             cardDiv.dataset.id = dev.device_name; // Identificador para guardar orden
 
+            // Agregamos o quitamos la clase offline según status_final
             if (dev.status_final === "Desconectado") {
                 cardDiv.classList.add('offline-card');
+            } else {
+                cardDiv.classList.remove('offline-card');
             }
+
             let h3 = document.createElement('h3');
             h3.textContent = dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
             cardDiv.appendChild(h3);
@@ -210,9 +208,7 @@
 
         // Renderiza las tarjetas en deviceGrid (actualizando solo contenido)
         function renderDevices(devices) {
-            // Para evitar re-crear el DOM y perder el orden actual,
-            // actualizamos el contenido de cada tarjeta existente,
-            // y agregamos las que falten.
+            // Actualizamos el contenido de cada tarjeta existente sin recrear todo el DOM
             const existingCards = Array.from(deviceGrid.children);
             const processed = new Set();
 
@@ -241,6 +237,12 @@
                             a.href = "/device/" + id;
                             a.textContent = "Ver Detalles";
                         }
+                    }
+                    // Actualizamos la clase offline si es necesario
+                    if (dev.status_final === "Desconectado") {
+                        card.classList.add('offline-card');
+                    } else {
+                        card.classList.remove('offline-card');
                     }
                     processed.add(id);
                 }
