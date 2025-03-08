@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Incluimos ProgressBar.js para el gauge -->
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
+
     <style>
         :root {
             --body-bg: #1C242C;
@@ -56,6 +57,7 @@
             padding: 15px;
             text-align: center;
             flex: 1 1 250px;
+            position: relative;
         }
 
             .panel h3 {
@@ -64,6 +66,14 @@
                 font-size: 1.1rem;
             }
 
+        .value-text {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 10px 0;
+            transition: color 0.4s ease;
+        }
+
+        /* Gauge de tiempo restante */
         .gauge-container {
             width: 150px;
             height: 150px;
@@ -93,6 +103,23 @@
             margin-top: 20px;
             color: var(--text-secondary);
         }
+
+        /* Animación fade-in-up */
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
@@ -105,17 +132,17 @@
             <!-- Panel: Tiempo Encendido -->
             <div class="panel">
                 <h3>Tiempo Encendido</h3>
-                <p id="onTime">-- s</p>
+                <p id="onTime" class="value-text">-- s</p>
             </div>
             <!-- Panel: Tiempo Apagado -->
             <div class="panel">
                 <h3>Tiempo Apagado</h3>
-                <p id="offTime">-- s</p>
+                <p id="offTime" class="value-text">-- s</p>
             </div>
             <!-- Panel: Estado Actual -->
             <div class="panel">
                 <h3>Estado Actual</h3>
-                <p id="lecobStatus">--</p>
+                <p id="lecobStatus" class="value-text">--</p>
             </div>
         </div>
         <div class="panel-row">
@@ -139,6 +166,7 @@
     </footer>
 
     <script>
+    // Gauge para tiempo restante
     let lecobTimeGauge = new ProgressBar.Circle('#lecobTimeGaugeContainer', {
       color: '#FF5A5F',
       strokeWidth: 8,
@@ -154,33 +182,69 @@
       }
     });
 
+    // Función para animar el cambio de texto con fade-in-up
+    function updateValueAnimated(elementId, newValue) {
+      const el = document.getElementById(elementId);
+      // Removemos la clase para poder re-aplicarla y reiniciar la animación
+      el.classList.remove('fade-in-up');
+      // Forzamos reflow para reiniciar la animación
+      void el.offsetWidth;
+      el.classList.add('fade-in-up');
+      // Actualizamos el texto
+      el.textContent = newValue;
+    }
+
+    // Función para asignar color al estado según el valor
+    function getColorForStatus(status) {
+      // Ajusta los colores según tus posibles estados
+      switch(status.toLowerCase()) {
+        case "idle":
+          return "#B0B0B0"; // gris
+        case "running":
+          return "#5FC3E4"; // azul claro
+        case "finalizado":
+          return "#5FC36F"; // verde
+        default:
+          return "#FF5A5F"; // rojo por defecto
+      }
+    }
+
     async function updateLecobData() {
       try {
         const resp = await fetch('{{ url_for("device_lecob50_data", device_name=device.device_name) }}');
         const data = await resp.json();
         // data esperado: { on_time, off_time, time_left, max_time, status }
         if (data.error) {
-          document.getElementById('onTime').textContent = "-- s";
-          document.getElementById('offTime').textContent = "-- s";
-          document.getElementById('lecobStatus').textContent = "Desconectado";
+          updateValueAnimated('onTime', "-- s");
+          updateValueAnimated('offTime', "-- s");
+          updateValueAnimated('lecobStatus', "Desconectado");
           lecobTimeGauge.animate(0, { duration: 500 });
-          document.getElementById('lecobTimeGaugeText').textContent = "0 s";
-          document.getElementById('maxTimeLabel').textContent = "max: 0 s";
+          updateValueAnimated('lecobTimeGaugeText', "0 s");
+          updateValueAnimated('maxTimeLabel', "max: 0 s");
           return;
         }
-        const { on_time, off_time, time_left, max_time, status } = data;
-        document.getElementById('onTime').textContent = on_time + " s";
-        document.getElementById('offTime').textContent = off_time + " s";
-        document.getElementById('lecobStatus').textContent = status;
 
+        const { on_time, off_time, time_left, max_time, status } = data;
+
+        // Animación para tiempo encendido y apagado
+        updateValueAnimated('onTime', on_time + " s");
+        updateValueAnimated('offTime', off_time + " s");
+
+        // Estado actual con color dinámico
+        const statusEl = document.getElementById('lecobStatus');
+        statusEl.style.color = getColorForStatus(status);
+        updateValueAnimated('lecobStatus', status);
+
+        // Gauge para tiempo restante
         let ratio = 0;
         if (max_time > 0) {
           ratio = time_left / max_time;
           if (ratio > 1) ratio = 1;
         }
         lecobTimeGauge.animate(ratio, { duration: 500 });
-        document.getElementById('lecobTimeGaugeText').textContent = time_left + " s";
-        document.getElementById('maxTimeLabel').textContent = "max: " + max_time + " s";
+        updateValueAnimated('lecobTimeGaugeText', time_left + " s");
+        updateValueAnimated('maxTimeLabel', "max: " + max_time + " s");
+
       } catch (err) {
         console.error("Error actualizando datos de LECOB 50:", err);
       }
