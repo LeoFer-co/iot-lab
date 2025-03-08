@@ -17,11 +17,11 @@
             --accent: #D07B2C;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
-            /* Paleta adicional */
+            /* Paleta de colores para estados */
             --color-encendido: #5FC3E4; /* azul claro */
             --color-apagado: #424F5B; /* gris oscuro */
             --color-idle: #B0B0B0; /* gris claro */
-            --color-running: #5FC3E4; /* igual que encendido */
+            --color-running: #5FC3E4; /* azul claro */
             --color-done: #5FC36F; /* verde */
             --color-error: #FF5A5F; /* rojo */
         }
@@ -93,7 +93,6 @@
                 position: absolute;
             }
 
-        /* Distinguimos "encendido" y "apagado" con colores */
         .donut-encendido {
             border-color: var(--color-encendido);
         }
@@ -102,12 +101,23 @@
             border-color: var(--color-apagado);
         }
 
-        /* Donut para el estado actual */
-        .donut-estado {
-            border-color: var(--color-idle);
+        /* Para Estado Actual ahora usaremos un círculo completo de mayor diámetro y fondo sólido */
+        .status-circle {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #FFF;
+            text-align: center;
+            background-color: var(--color-idle);
+            transition: background-color 0.4s ease;
         }
 
-        /* Gauge de tiempo restante */
+        /* Gauge de Tiempo Restante */
         .gauge-container {
             width: 150px;
             height: 150px;
@@ -149,30 +159,23 @@
             <!-- Panel: Tiempo Encendido -->
             <div class="panel">
                 <h3>Tiempo Encendido</h3>
-                <!-- Donut de color "encendido" -->
                 <div class="donut donut-encendido" id="onTimeDonut">
                     <span id="onTime">--</span>
                 </div>
             </div>
-
             <!-- Panel: Tiempo Apagado -->
             <div class="panel">
                 <h3>Tiempo Apagado</h3>
-                <!-- Donut de color "apagado" -->
                 <div class="donut donut-apagado" id="offTimeDonut">
                     <span id="offTime">--</span>
                 </div>
             </div>
-
             <!-- Panel: Estado Actual -->
             <div class="panel">
                 <h3>Estado Actual</h3>
-                <div class="donut donut-estado" id="lecobStatusDonut">
-                    <span id="lecobStatus">--</span>
-                </div>
+                <div class="status-circle" id="lecobStatusCircle">--</div>
             </div>
         </div>
-
         <div class="panel-row">
             <!-- Panel: Gauge de Tiempo Restante -->
             <div class="panel">
@@ -210,7 +213,7 @@
       }
     });
 
-    // Determina el color de la donut de estado
+    // Función para asignar color al estado según el valor recibido
     function getColorForStatus(status) {
       switch(status.toLowerCase()) {
         case "idle":
@@ -220,7 +223,7 @@
         case "finalizado":
           return "var(--color-done)";      // verde
         default:
-          return "var(--color-error)";     // rojo por defecto
+          return "var(--color-error)";     // rojo
       }
     }
 
@@ -230,11 +233,10 @@
         const data = await resp.json();
         // data esperado: { on_time, off_time, time_left, max_time, status }
         if (data.error) {
-          // Si hay error, reseteamos todo
           document.getElementById('onTime').textContent = "--";
           document.getElementById('offTime').textContent = "--";
-          document.getElementById('lecobStatus').textContent = "Desconectado";
-          document.getElementById('lecobStatusDonut').style.borderColor = "var(--color-error)";
+          document.getElementById('lecobStatusCircle').textContent = "Desconectado";
+          document.getElementById('lecobStatusCircle').style.backgroundColor = "var(--color-error)";
           lecobTimeGauge.animate(0, { duration: 500 });
           document.getElementById('lecobTimeGaugeText').textContent = "0 s";
           document.getElementById('maxTimeLabel').textContent = "max: 0 s";
@@ -243,18 +245,16 @@
 
         const { on_time, off_time, time_left, max_time, status } = data;
 
-        // Actualiza el donut de "Tiempo Encendido"
-        document.getElementById('onTime').textContent = on_time + "s";
-        // Ajusta color si deseas (por ahora, fijo en "encendido")
-        // Donut "apagado" para off_time
-        document.getElementById('offTime').textContent = off_time + "s";
+        // Actualiza valores en los donuts de Tiempo Encendido y Apagado
+        document.getElementById('onTime').textContent = on_time + " s";
+        document.getElementById('offTime').textContent = off_time + " s";
 
-        // Estado actual
-        const statusDonut = document.getElementById('lecobStatusDonut');
-        document.getElementById('lecobStatus').textContent = status;
-        statusDonut.style.borderColor = getColorForStatus(status);
+        // Actualiza el círculo del Estado Actual
+        const statusCircle = document.getElementById('lecobStatusCircle');
+        statusCircle.textContent = status;
+        statusCircle.style.backgroundColor = getColorForStatus(status);
 
-        // Tiempo restante (gauge)
+        // Gauge para Tiempo Restante
         let ratio = 0;
         if (max_time > 0) {
           ratio = time_left / max_time;
