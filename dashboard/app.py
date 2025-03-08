@@ -127,10 +127,11 @@ def device_detail(device_name):
         cursor.execute("SELECT * FROM measurements_reactor ORDER BY id DESC LIMIT 30")
         rows = cursor.fetchall()
         conn.close()
-        timestamps, temps, speeds, time_lefts, max_times, states = [], [], [], [], [], []
+        timestamps, temps, temp_sets, speeds, time_lefts, max_times, states = [], [], [], [], [], [], []
         for r in reversed(rows):
             timestamps.append(r["timestamp"])
             temps.append(r["temp"])
+            temp_sets.append(r["temp_set"])
             speeds.append(r["speed"])
             time_lefts.append(r["time_left"])
             max_times.append(r["max_time"])
@@ -139,6 +140,7 @@ def device_detail(device_name):
                                device=device,
                                timestamps=timestamps,
                                temps=temps,
+                               temp_sets=temp_sets,
                                speeds=speeds,
                                time_lefts=time_lefts,
                                max_times=max_times,
@@ -230,10 +232,11 @@ def device_reactor_data(device_name):
     rows = cursor.fetchall()
     conn.close()
 
-    timestamps, temps, speeds, time_lefts, max_times, states = [], [], [], [], [], []
+    timestamps, temps, temp_sets, speeds, time_lefts, max_times, states = [], [], [], [], [], [], []
     for r in reversed(rows):
         timestamps.append(r["timestamp"])
         temps.append(r["temp"])
+        temp_sets.append(r["temp_set"])
         speeds.append(r["speed"])
         time_lefts.append(r["time_left"])
         max_times.append(r["max_time"])
@@ -242,6 +245,7 @@ def device_reactor_data(device_name):
     return jsonify({
         "timestamps": timestamps,
         "temps": temps,
+        "temp_sets": temp_sets,
         "speeds": speeds,
         "time_lefts": time_lefts,
         "max_times": max_times,

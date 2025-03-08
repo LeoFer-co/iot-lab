@@ -61,6 +61,7 @@ cursor.execute('''
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     temp REAL,
+    temp_set REAL,
     speed REAL,
     time_left INTEGER,
     max_time INTEGER,
@@ -160,14 +161,15 @@ def on_message(client, userdata, msg):
         
         elif subtopic == "reactor":
             temp = data.get("temp", 0)
+            temp_set = data.get("temp_set", 0)  # Nuevo dato: temperatura seteada
             speed = data.get("speed", 0)
             time_left = data.get("time_left", 0)
             max_time = data.get("max_time", 60)
             state = data.get("state", "inactivo")
             cursor.execute('''
-              INSERT INTO measurements_reactor (timestamp, temp, speed, time_left, max_time, state)
-              VALUES (?, ?, ?, ?, ?, ?)
-            ''', (local_timestamp(), temp, speed, time_left, max_time, state))
+              INSERT INTO measurements_reactor (timestamp, temp, temp_set, speed, time_left, max_time, state)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (local_timestamp(), temp, temp_set, speed, time_left, max_time, state))
             conn.commit()
             update_device(device_name, "reactor", state)
         

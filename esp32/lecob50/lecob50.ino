@@ -126,9 +126,9 @@ void loop() {
     }
   }
 
-  // Publicar cada 5 segundos
+  // Publicar cada 1 segundos
   static unsigned long lastPublish = 0;
-  if (millis() - lastPublish > 5000) {
+  if (millis() - lastPublish > 1000) {
     lastPublish = millis();
     publishData();
   }
