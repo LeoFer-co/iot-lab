@@ -29,7 +29,7 @@ void reconnect() {
   while (!client.connected()) {
     if (client.connect("ESP_Reactor")) {
       // Conectado, no es necesario suscribir.
-    } else {
+    } else {uv
       delay(5000);
     }
   }
