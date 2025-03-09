@@ -14,7 +14,8 @@ PREDEFINED_DEVICES = [
     ("reactor", "reactor"),
     ("lc_shaker", "lc_shaker"),
     ("lecob50", "lecob50"),
-    ("uvale", "uvale")
+    ("uvale", "uvale"),
+    ("camera", "camera")  # Agregado para el streaming de cámara
 ]
 
 def get_db():
@@ -39,8 +40,10 @@ def devices_data():
     conn = get_db()
     cursor = conn.cursor()
 
-    # Aseguramos que cada dispositivo predefinido exista en la DB con position=9999 por defecto
+    # Aseguramos que cada dispositivo predefinido (excepto "camera") exista en la DB con position=9999 por defecto
     for (dev_name, dev_type) in PREDEFINED_DEVICES:
+        if dev_name == "camera":
+            continue  # La cámara se manejará como especial, sin datos en DB
         cursor.execute("SELECT COUNT(*) FROM devices WHERE device_name=?", (dev_name,))
         c = cursor.fetchone()[0]
         if c == 0:
@@ -50,7 +53,7 @@ def devices_data():
             """, (dev_name, dev_type, "No data", 9999))
     conn.commit()
 
-    # Ahora consultamos todos los dispositivos, ordenados por 'position'
+    # Consultamos todos los dispositivos, ordenados por 'position'
     cursor.execute("SELECT * FROM devices ORDER BY position ASC")
     rows = cursor.fetchall()
     conn.close()
@@ -72,6 +75,17 @@ def devices_data():
             dev_dict["status_final"] = "Desconocido"
         final_list.append(dev_dict)
 
+    # Agregamos placeholders para los dispositivos predefinidos que no estén en DB (incluyendo "camera")
+    for (dev_name, dev_type) in PREDEFINED_DEVICES:
+        exists = any(d["device_name"] == dev_name for d in final_list)
+        if not exists:
+            final_list.append({
+                "device_name": dev_name,
+                "device_type": dev_type,
+                "last_status": "No data",
+                "last_seen": "1970-01-01 00:00:00",
+                "status_final": "Desconectado"
+            })
     return jsonify(final_list)
 
 @app.route("/device/<device_name>")
@@ -79,13 +93,18 @@ def device_detail(device_name):
     """
     Página de detalle de un dispositivo. Si está offline, error 403.
     Soporta 6 tipos: estacion, microdos, reactor, lc_shaker, lecob50, uvale.
-    Renderiza la plantilla correspondiente.
+    Además, si device_name es "camera", se muestra la interfaz de streaming.
     """
+    # Caso especial para la cámara: no requiere datos en DB
+    if device_name == "camera":
+        return render_template("device_camera.html")
+    
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM devices WHERE device_name=?", (device_name,))
     device = cursor.fetchone()
     if not device:
+        conn.close()
         return f"El dispositivo '{device_name}' no tiene datos en la base. Desconectado.", 403
 
     # Ajustamos la hora actual a la base local (UTC-5)
@@ -131,7 +150,7 @@ def device_detail(device_name):
         for r in reversed(rows):
             timestamps.append(r["timestamp"])
             temps.append(r["temp"])
-            temp_sets.append(r["temp_set"])
+            temp_sets.append(r["temp_set"])  # Asumiendo que la columna "temp_set" se agregó en la tabla
             speeds.append(r["speed"])
             time_lefts.append(r["time_left"])
             max_times.append(r["max_time"])

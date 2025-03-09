@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Dispositivo Cámara</title>
+    <title>Cámara en Vivo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
@@ -11,9 +11,8 @@
             font-family: 'Montserrat', sans-serif;
             background-color: #1C242C;
             color: #F0F0F0;
-            margin: 0;
-            padding: 20px;
             text-align: center;
+            padding: 20px;
         }
 
         h1 {
@@ -37,8 +36,10 @@
 <body>
     <h1>Cámara en Vivo</h1>
     <div class="stream-container">
+        <!-- Ajusta la URL según tu configuración: si usas Docker, usa el nombre del servicio -->
         <img src="http://camera:8080/?action=stream" alt="Stream de la Cámara">
     </div>
     <a href="{{ url_for('home') }}">Volver</a>
+    <footer>2025 - LC Projects</footer>
 </body>
 </html>
