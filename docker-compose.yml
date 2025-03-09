@@ -21,19 +21,20 @@ services:
     volumes:
       - ./data:/app/data
     restart: always
-  
+    # No se expone puerto ya que el proxy se encargará
+
   dashboard:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
     container_name: iot_dashboard
-    ports:
-      - "5000:5000"
+    # Eliminamos el mapeo de puertos para que no compita
     volumes:
       - ./data:/app/data
     depends_on:
       - backend
     restart: always
+
   camera:
     build:
       context: ./mjpg-streamer
@@ -43,6 +44,19 @@ services:
       - "/dev/video0:/dev/video0"
     ports:
       - "8080:8080"
+    restart: always
+
+  proxy:
+    image: nginx:latest
+    container_name: iot_proxy
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "5000:80"
+    depends_on:
+      - backend
+      - dashboard
+      - camera
     restart: always
 
 volumes:
