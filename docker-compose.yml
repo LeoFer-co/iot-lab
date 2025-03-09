@@ -34,6 +34,16 @@ services:
     depends_on:
       - backend
     restart: always
+  camera:
+    build:
+      context: ./mjpg-streamer
+      dockerfile: Dockerfile
+    container_name: mjpg_streamer
+    devices:
+      - "/dev/video0:/dev/video0"
+    ports:
+      - "8080:8080"
+    restart: always
 
 volumes:
   mosquitto_data:
