@@ -86,6 +86,9 @@ def devices_data():
                 "last_seen": "1970-01-01 00:00:00",
                 "status_final": "Desconectado"
             })
+    for dev in final_list:
+        if dev["device_name"] == "camera":
+            dev["status_final"] = "Conectado"
     return jsonify(final_list)
 
 @app.route("/device/<device_name>")
