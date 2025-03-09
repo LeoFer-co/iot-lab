@@ -21,7 +21,7 @@ services:
     volumes:
       - ./data:/app/data
     restart: always
-    # No se expone puerto ya que el proxy se encargar·
+    # No se expone puerto ya que el proxy se encargar√°
 
   dashboard:
     build:
