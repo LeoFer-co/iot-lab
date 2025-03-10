@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>LC Projects - Dispositivos</title>
+    <title>Dispositivos</title>
     <!-- Fuente Montserrat -->
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet" />
@@ -49,16 +49,31 @@
             margin-right: 15px;
         }
 
-        .header-title {
-            font-size: 1.6rem;
-            font-weight: 600;
-            color: var(--accent);
+        /* Botón de cámara (independiente) */
+        .camera-btn-container {
+            text-align: center;
+            margin: 10px 0 20px 0;
         }
+
+        .camera-btn {
+            display: inline-block;
+            background-color: var(--accent);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+
+            .camera-btn:hover {
+                background-color: #c4681f; /* un tono un poco más oscuro */
+            }
 
         main {
             flex: 1;
             width: 100%;
-            margin: 20px auto;
+            margin: 0 auto;
             padding: 0 20px;
             display: flex;
             flex-direction: column;
@@ -68,8 +83,9 @@
             font-size: 1.8rem;
             color: var(--accent);
             text-align: center;
-            margin-bottom: 20px;
+            margin: 20px 0;
         }
+
         /* Cuadrícula con 3 columnas fijas por defecto */
         .device-grid {
             display: grid;
@@ -99,7 +115,8 @@
             .device-card:hover {
                 transform: scale(1.03);
             }
-        /* Diferenciamos los dispositivos desconectados */
+
+        /* Dispositivos desconectados */
         .offline-card {
             background-color: var(--offline-card-bg);
             position: relative;
@@ -154,30 +171,36 @@
 </head>
 <body>
     <header>
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" class="logo" />
-        <h2 class="header-title">LC Projects - Dispositivos</h2>
+        <!-- Logo a la izquierda, sin texto redundante -->
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo" />
     </header>
+
     <main>
+        <!-- Botón para la cámara (independiente de la grid) -->
+        <div class="camera-btn-container">
+            <a href="/device/camera" class="camera-btn">Ver Cámara</a>
+        </div>
+
         <h1>Dispositivos en la red</h1>
+
         <div class="device-grid" id="deviceGrid"></div>
     </main>
+
     <footer>
         2025 - LC Projects
     </footer>
+
     <script>
         const deviceGrid = document.getElementById('deviceGrid');
 
-        // Crea la tarjeta para un dispositivo
+        // Crea la tarjeta para un dispositivo (excepto 'camera')
         function buildDeviceCard(dev) {
             let cardDiv = document.createElement('div');
             cardDiv.classList.add('device-card');
-            cardDiv.dataset.id = dev.device_name; // Identificador para guardar orden
+            cardDiv.dataset.id = dev.device_name;
 
-            // Agregamos o quitamos la clase offline según status_final
             if (dev.status_final === "Desconectado") {
                 cardDiv.classList.add('offline-card');
-            } else {
-                cardDiv.classList.remove('offline-card');
             }
 
             let h3 = document.createElement('h3');
@@ -192,6 +215,7 @@
             pEstado.textContent = "Estado: " + dev.status_final;
             cardDiv.appendChild(pEstado);
 
+            // Enlace o link
             if (dev.status_final === "Desconectado") {
                 let aDisabled = document.createElement('a');
                 aDisabled.classList.add('disabled');
@@ -206,58 +230,59 @@
             return cardDiv;
         }
 
-        // Renderiza las tarjetas en deviceGrid (actualizando solo contenido)
         function renderDevices(devices) {
-            // Actualizamos el contenido de cada tarjeta existente sin recrear todo el DOM
             const existingCards = Array.from(deviceGrid.children);
             const processed = new Set();
+
+            // Filtramos la cámara para que no aparezca en la grid
+            const filteredDevices = devices.filter(d => d.device_name !== "camera");
 
             // Actualizamos tarjetas existentes
             existingCards.forEach(card => {
                 const id = card.dataset.id;
-                const dev = devices.find(d => d.device_name === id);
+                const dev = filteredDevices.find(d => d.device_name === id);
                 if (dev) {
-                    // Actualizamos título y párrafos
-                    card.querySelector('h3').textContent = dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
+                    // Actualiza contenido
                     const ps = card.querySelectorAll('p');
+                    card.querySelector('h3').textContent =
+                        dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
+
                     if (ps.length >= 2) {
                         ps[0].textContent = "Tipo: " + dev.device_type;
                         ps[1].textContent = "Estado: " + dev.status_final;
                     }
-                    // Actualizamos el enlace
                     const a = card.querySelector('a');
                     if (dev.status_final === "Desconectado") {
+                        card.classList.add('offline-card');
                         if (a) {
                             a.classList.add('disabled');
                             a.textContent = "Ver Detalles";
                         }
                     } else {
+                        card.classList.remove('offline-card');
                         if (a) {
                             a.classList.remove('disabled');
-                            a.href = "/device/" + id;
+                            a.href = "/device/" + dev.device_name;
                             a.textContent = "Ver Detalles";
                         }
                     }
-                    // Actualizamos la clase offline si es necesario
-                    if (dev.status_final === "Desconectado") {
-                        card.classList.add('offline-card');
-                    } else {
-                        card.classList.remove('offline-card');
-                    }
                     processed.add(id);
+                } else {
+                    // Si la tarjeta no está en la lista filtrada, la removemos
+                    deviceGrid.removeChild(card);
                 }
             });
 
-            // Agregamos tarjetas nuevas (para dispositivos que no estaban en el DOM)
-            devices.forEach(dev => {
+            // Agregamos las nuevas
+            filteredDevices.forEach(dev => {
                 if (!processed.has(dev.device_name)) {
                     const card = buildDeviceCard(dev);
                     deviceGrid.appendChild(card);
                 }
             });
 
-            // Reordenamos el DOM según el orden recibido
-            devices.forEach(dev => {
+            // Reordenamos según el orden devuelto
+            filteredDevices.forEach(dev => {
                 const card = document.querySelector(`.device-card[data-id="${dev.device_name}"]`);
                 if (card) {
                     deviceGrid.appendChild(card);
@@ -278,27 +303,27 @@
         setInterval(updateDevices, 5000);
         updateDevices();
 
-        // Activamos drag & drop con SortableJS
+        // Sortable
         new Sortable(deviceGrid, {
             animation: 300,
             easing: "cubic-bezier(0.25, 0.8, 0.5, 1)",
             ghostClass: 'sortable-ghost',
-            delay: 150,             // 0.15s en pantallas táctiles
+            delay: 150,
             delayOnTouchOnly: true,
             onChoose: function (evt) {
-                evt.item.style.backgroundColor = "#A4E09F"; // color verde claro al arrastrar
+                evt.item.style.backgroundColor = "#A4E09F";
             },
             onUnchoose: function (evt) {
                 evt.item.style.backgroundColor = "";
             },
             onEnd: async function (evt) {
                 evt.item.style.backgroundColor = "";
-                // Recolectamos el nuevo orden (basado en dataset.id)
+                // Recolectar el nuevo orden
                 let newOrder = [];
                 deviceGrid.childNodes.forEach(card => {
                     newOrder.push(card.dataset.id);
                 });
-                // Enviamos el nuevo orden al backend
+                // Guardar orden
                 try {
                     await fetch("/api/save_order", {
                         method: "POST",
