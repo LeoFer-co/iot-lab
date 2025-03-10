@@ -52,7 +52,7 @@
         /* Botón de cámara (independiente) */
         .camera-btn-container {
             text-align: center;
-            margin: 10px 0 20px 0;
+            margin: 30px auto 20px auto; /* mayor margen arriba */
         }
 
         .camera-btn {
@@ -171,18 +171,17 @@
 </head>
 <body>
     <header>
-        <!-- Logo a la izquierda, sin texto redundante -->
+        <!-- Solo el logo, sin texto redundante -->
         <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo" />
     </header>
 
     <main>
-        <!-- Botón para la cámara (independiente de la grid) -->
+        <!-- Botón para la cámara, con mayor margen arriba -->
         <div class="camera-btn-container">
             <a href="/device/camera" class="camera-btn">Ver Cámara</a>
         </div>
 
         <h1>Dispositivos en la red</h1>
-
         <div class="device-grid" id="deviceGrid"></div>
     </main>
 
@@ -215,7 +214,6 @@
             pEstado.textContent = "Estado: " + dev.status_final;
             cardDiv.appendChild(pEstado);
 
-            // Enlace o link
             if (dev.status_final === "Desconectado") {
                 let aDisabled = document.createElement('a');
                 aDisabled.classList.add('disabled');
@@ -234,15 +232,15 @@
             const existingCards = Array.from(deviceGrid.children);
             const processed = new Set();
 
-            // Filtramos la cámara para que no aparezca en la grid
+            // Filtramos la cámara para no mostrarla en la grid
             const filteredDevices = devices.filter(d => d.device_name !== "camera");
 
-            // Actualizamos tarjetas existentes
+            // Actualiza tarjetas existentes
             existingCards.forEach(card => {
                 const id = card.dataset.id;
                 const dev = filteredDevices.find(d => d.device_name === id);
                 if (dev) {
-                    // Actualiza contenido
+                    // Actualizar contenido
                     const ps = card.querySelectorAll('p');
                     card.querySelector('h3').textContent =
                         dev.device_name.charAt(0).toUpperCase() + dev.device_name.slice(1);
@@ -268,12 +266,12 @@
                     }
                     processed.add(id);
                 } else {
-                    // Si la tarjeta no está en la lista filtrada, la removemos
+                    // si la tarjeta no está en la lista, la removemos
                     deviceGrid.removeChild(card);
                 }
             });
 
-            // Agregamos las nuevas
+            // Agrega las nuevas
             filteredDevices.forEach(dev => {
                 if (!processed.has(dev.device_name)) {
                     const card = buildDeviceCard(dev);
@@ -281,7 +279,7 @@
                 }
             });
 
-            // Reordenamos según el orden devuelto
+            // Reordenar DOM
             filteredDevices.forEach(dev => {
                 const card = document.querySelector(`.device-card[data-id="${dev.device_name}"]`);
                 if (card) {
@@ -303,7 +301,7 @@
         setInterval(updateDevices, 5000);
         updateDevices();
 
-        // Sortable
+        // SortableJS
         new Sortable(deviceGrid, {
             animation: 300,
             easing: "cubic-bezier(0.25, 0.8, 0.5, 1)",
@@ -318,12 +316,10 @@
             },
             onEnd: async function (evt) {
                 evt.item.style.backgroundColor = "";
-                // Recolectar el nuevo orden
                 let newOrder = [];
                 deviceGrid.childNodes.forEach(card => {
                     newOrder.push(card.dataset.id);
                 });
-                // Guardar orden
                 try {
                     await fetch("/api/save_order", {
                         method: "POST",
