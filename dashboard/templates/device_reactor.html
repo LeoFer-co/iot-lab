@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>Reactor IoT Quitosano</title>
+    <title>Reactor IoT de Quitosano</title>
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,13 +34,7 @@
             text-align: center;
             margin-bottom: 20px;
         }
-
-            header img {
-                height: 50px;
-                vertical-align: middle;
-                margin-right: 10px;
-            }
-
+            /* Se elimina el logo; solo se muestra el título */
             header h1 {
                 display: inline;
                 color: var(--accent);
@@ -102,7 +96,6 @@
             margin-top: 20px;
         }
 
-        /* Círculo para el estado actual */
         .state-circle {
             width: 150px;
             height: 150px;
@@ -127,24 +120,27 @@
             margin-top: 20px;
             color: var(--text-secondary);
         }
-
-        /* Estilos para los recuadros de valores numéricos */
+        /* Recuadros para los valores numéricos con tonos sobrios */
         .value-box {
             display: inline-block;
             padding: 10px;
             margin: 5px;
-            border: 2px solid #FFFFFF;
+            border: 2px solid #555555;
             border-radius: 4px;
             min-width: 150px;
             text-align: center;
             font-weight: bold;
+            background-color: #2A333B;
+        }
+        /* Ocultamos el recuadro del tiempo seteado, pero lo dejamos en el código */
+        #maxTimeLabel {
+            display: none;
         }
     </style>
 </head>
 <body>
     <header>
-        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" />
-        <h1>Reactor IoT Quitosano</h1>
+        <h1>Reactor IoT de Quitosano</h1>
     </header>
 
     <div class="dashboard">
@@ -154,7 +150,8 @@
             <div class="panel">
                 <h3>Tiempo</h3>
                 <div class="gauge-container" id="timeGaugeContainer">
-                    <div id="timeGaugeText" class="gauge-text">0 s</div>
+                    <!-- Se muestra solo el valor numérico sin "s" -->
+                    <div id="timeGaugeText" class="gauge-text">0</div>
                 </div>
                 <p style="margin-top:10px;font-size:0.9rem;">
                     <span id="maxTimeLabel">Set: 0 s</span>
@@ -232,7 +229,7 @@
                 {
                     label: 'Temp Seteada (°C)',
                     data: tempSetLineArray,
-                    borderColor: '#AAAAAA', // se actualizará dinámicamente
+                    borderColor: '#AAAAAA',
                     fill: false,
                     tension: 0,
                     borderDash: [5, 5]
@@ -283,7 +280,7 @@
                 {
                     label: 'Velocidad Seteada (rpm)',
                     data: speedSetLineArray,
-                    borderColor: '#FFFF00', // se actualizará dinámicamente
+                    borderColor: '#FFFF00',
                     fill: false,
                     tension: 0,
                     borderDash: [5, 5]
@@ -314,22 +311,21 @@
         }
     });
 
-    // Tolerancias
+    // Tolerancias para determinar la proximidad
     const tempTolerance = 3;
     const speedTolerance = 10;
 
-    // Función para determinar el color según la proximidad
+    // Función para obtener colores más sobrios para la temática oscura
     function getProximityColor(actual, setVal, tolerance) {
         if (actual < setVal - tolerance) {
-            return "#5A9BFF";  // Azul
+            return "#6699CC";  // Azul sobrio
         } else if (actual > setVal + tolerance) {
-            return "#FF5A5F";  // Rojo
+            return "#CC6666";  // Rojo sobrio
         } else {
-            return "#5FC36F";  // Verde
+            return "#66CC99";  // Verde sobrio
         }
     }
 
-    // Inicialización de los recuadros con valores iniciales
     const initialTemp = temps.length > 0 ? temps[temps.length - 1] : 0;
     const initialSpeed = speeds.length > 0 ? speeds[speeds.length - 1] : 0;
     document.getElementById('tempActualText').textContent = initialTemp.toFixed(1);
@@ -337,7 +333,6 @@
     document.getElementById('speedActualText').textContent = initialSpeed.toFixed(0);
     document.getElementById('speedSetText').textContent = speedSetValue.toFixed(0);
 
-    // Actualización inicial del color de la línea de seteo en las gráficas
     let tempSetColor = getProximityColor(initialTemp, tempSetValue, tempTolerance);
     tempChart.data.datasets[1].borderColor = tempSetColor;
     tempChart.update();
@@ -346,13 +341,11 @@
     speedChart.data.datasets[1].borderColor = speedSetColor;
     speedChart.update();
 
-    // Actualización inicial de los colores de los recuadros
     document.getElementById('tempActualBox').style.backgroundColor = getProximityColor(initialTemp, tempSetValue, tempTolerance);
     document.getElementById('tempSetBox').style.backgroundColor = getProximityColor(initialTemp, tempSetValue, tempTolerance);
     document.getElementById('speedActualBox').style.backgroundColor = getProximityColor(initialSpeed, speedSetValue, speedTolerance);
     document.getElementById('speedSetBox').style.backgroundColor = getProximityColor(initialSpeed, speedSetValue, speedTolerance);
 
-    // Gauge para Tiempo
     let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
         color: '#FF5A5F',
         strokeWidth: 8,
@@ -368,14 +361,12 @@
         }
     });
 
-    // Función para actualizar datos en tiempo real
     async function updateReactorData() {
         try {
             const resp = await fetch('{{ url_for("device_reactor_data", device_name=device.device_name) }}');
             const data = await resp.json();
-            // data: timestamps, temps, temp_sets, speeds, speed_sets, time_lefts, max_times, states
+            // data incluye: timestamps, temps, temp_sets, speeds, speed_sets, time_lefts, max_times, states
 
-            // Actualización de la gráfica de Temperatura
             tempChart.data.labels = data.timestamps;
             tempChart.data.datasets[0].data = data.temps;
             const newTempSetVal = data.temp_sets.length > 0 ? data.temp_sets[data.temp_sets.length - 1] : 0;
@@ -385,7 +376,6 @@
             tempChart.data.datasets[1].borderColor = newTempSetColor;
             tempChart.update();
 
-            // Actualización de la gráfica de Velocidad
             speedChart.data.labels = data.timestamps;
             speedChart.data.datasets[0].data = data.speeds;
             const newSpeedSetVal = data.speed_sets && data.speed_sets.length > 0 ? data.speed_sets[data.speed_sets.length - 1] : 0;
@@ -395,7 +385,6 @@
             speedChart.data.datasets[1].borderColor = newSpeedSetColor;
             speedChart.update();
 
-            // Actualización de los recuadros numéricos
             document.getElementById('tempActualText').textContent = lastTemp.toFixed(1);
             document.getElementById('tempSetText').textContent = newTempSetVal.toFixed(1);
             document.getElementById('speedActualText').textContent = lastSpeed.toFixed(0);
@@ -405,7 +394,6 @@
             document.getElementById('speedActualBox').style.backgroundColor = getProximityColor(lastSpeed, newSpeedSetVal, speedTolerance);
             document.getElementById('speedSetBox').style.backgroundColor = getProximityColor(lastSpeed, newSpeedSetVal, speedTolerance);
 
-            // Actualización del gauge de Tiempo
             const lastIndex = data.temps.length - 1;
             if (lastIndex < 0) return;
             const currentTime = data.time_lefts[lastIndex] || 0;
@@ -413,10 +401,10 @@
             let ratioTime = currentTime / currentMaxTime;
             if (ratioTime > 1) ratioTime = 1;
             timeGauge.animate(ratioTime, { duration: 500 });
-            document.getElementById('timeGaugeText').textContent = currentTime + " s";
+            document.getElementById('timeGaugeText').textContent = currentTime;
+            // Aunque se actualiza el tiempo seteado en el código, el recuadro está oculto
             document.getElementById('maxTimeLabel').textContent = "Set: " + currentMaxTime + " s";
 
-            // Actualización del estado actual
             const currentState = data.states[lastIndex] || "inactivo";
             const stateCircle = document.getElementById('reactorStateCircle');
             stateCircle.style.backgroundColor = getColorForReactorState(currentState);
@@ -427,16 +415,15 @@
         }
     }
 
-    // Función para determinar color según el estado del reactor
     function getColorForReactorState(state) {
         switch(state.toLowerCase()) {
-            case "dm running": return "#D35400";    // dark orange
-            case "dp running": return "#C0392B";      // dark red
-            case "da running": return "#2980B9";      // dark blue
-            case "suministro": return "#F39C12";      // dark gold
-            case "lavando":    return "#27AE60";      // dark green
-            case "expulsion":  return "#8E44AD";      // dark purple
-            case "inactivo":   return "#7F8C8D";      // gray
+            case "dm running": return "#D35400";
+            case "dp running": return "#C0392B";
+            case "da running": return "#2980B9";
+            case "suministro": return "#F39C12";
+            case "lavando":    return "#27AE60";
+            case "expulsion":  return "#8E44AD";
+            case "inactivo":   return "#7F8C8D";
             default:           return "#7F8C8D";
         }
     }
