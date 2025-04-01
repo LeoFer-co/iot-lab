@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, request, jsonify
 import sqlite3
 from datetime import datetime, timedelta
@@ -6,8 +7,7 @@ app = Flask(__name__)
 
 OFFLINE_THRESHOLD = 10  # segundos para marcar desconexión
 
-# Lista estática de dispositivos que queremos ver siempre en el Home
-# (nombre, tipo)
+# Lista estática de dispositivos que queremos ver siempre en el Home (incluyendo cámara)
 PREDEFINED_DEVICES = [
     ("estacion", "estacion"),
     ("microdos", "microdos"),
@@ -15,35 +15,28 @@ PREDEFINED_DEVICES = [
     ("lc_shaker", "lc_shaker"),
     ("lecob50", "lecob50"),
     ("uvale", "uvale"),
-    ("camera", "camera")  # Agregado para el streaming de cámara
+    ("camera", "camera")
 ]
 
 def get_db():
-    conn = sqlite3.connect("data/data.db")  # Asegúrate de que sea la misma ruta en Docker
+    DB_PATH = os.getenv("DB_PATH", "data/data.db")
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 @app.route("/")
 def home():
-    """
-    Renderiza la plantilla home.html (que se actualiza vía /devices_data).
-    """
     return render_template("home.html")
 
 @app.route("/devices_data")
 def devices_data():
-    """
-    Devuelve en JSON la lista de dispositivos, ordenado por 'position'.
-    Antes, se asegura de que todos los PREDEFINED_DEVICES existan en la DB,
-    para evitar placeholders.
-    """
     conn = get_db()
     cursor = conn.cursor()
 
     # Aseguramos que cada dispositivo predefinido (excepto "camera") exista en la DB con position=9999 por defecto
     for (dev_name, dev_type) in PREDEFINED_DEVICES:
         if dev_name == "camera":
-            continue  # La cámara se manejará como especial, sin datos en DB
+            continue
         cursor.execute("SELECT COUNT(*) FROM devices WHERE device_name=?", (dev_name,))
         c = cursor.fetchone()[0]
         if c == 0:
@@ -53,18 +46,17 @@ def devices_data():
             """, (dev_name, dev_type, "No data", 9999))
     conn.commit()
 
-    # Consultamos todos los dispositivos, ordenados por 'position'
     cursor.execute("SELECT * FROM devices ORDER BY position ASC")
     rows = cursor.fetchall()
     conn.close()
 
-    # Ajustamos la hora actual a la misma base local (UTC-5)
-    now = datetime.utcnow() - timedelta(hours=5)
+    timezone_offset = int(os.getenv("TIMEZONE_OFFSET", "5"))
+    now = datetime.utcnow() - timedelta(hours=timezone_offset)
     final_list = []
     for dev in rows:
         dev_dict = dict(dev)
         try:
-            last_seen_str = dev_dict["last_seen"]  # "YYYY-MM-DD HH:MM:SS"
+            last_seen_str = dev_dict["last_seen"]
             last_dt = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
             diff = (now - last_dt).total_seconds()
             if diff > OFFLINE_THRESHOLD:
@@ -75,7 +67,7 @@ def devices_data():
             dev_dict["status_final"] = "Desconocido"
         final_list.append(dev_dict)
 
-    # Agregamos placeholders para los dispositivos predefinidos que no estén en DB (incluyendo "camera")
+    # Agregamos placeholders para dispositivos predefinidos que no estén en DB
     for (dev_name, dev_type) in PREDEFINED_DEVICES:
         exists = any(d["device_name"] == dev_name for d in final_list)
         if not exists:
@@ -93,12 +85,6 @@ def devices_data():
 
 @app.route("/device/<device_name>")
 def device_detail(device_name):
-    """
-    Página de detalle de un dispositivo. Si está offline, error 403.
-    Soporta 6 tipos: estacion, microdos, reactor, lc_shaker, lecob50, uvale.
-    Además, si device_name es "camera", se muestra la interfaz de streaming.
-    """
-    # Caso especial para la cámara: no requiere datos en DB
     if device_name == "camera":
         return render_template("device_camera.html")
     
@@ -110,8 +96,8 @@ def device_detail(device_name):
         conn.close()
         return f"El dispositivo '{device_name}' no tiene datos en la base. Desconectado.", 403
 
-    # Ajustamos la hora actual a la base local (UTC-5)
-    now = datetime.utcnow() - timedelta(hours=5)
+    timezone_offset = int(os.getenv("TIMEZONE_OFFSET", "5"))
+    now = datetime.utcnow() - timedelta(hours=timezone_offset)
     try:
         last_dt = datetime.strptime(device["last_seen"], "%Y-%m-%d %H:%M:%S")
         diff = (now - last_dt).total_seconds()
@@ -153,7 +139,7 @@ def device_detail(device_name):
         for r in reversed(rows):
             timestamps.append(r["timestamp"])
             temps.append(r["temp"])
-            temp_sets.append(r["temp_set"])  # Asumiendo que la columna "temp_set" se agregó en la tabla
+            temp_sets.append(r["temp_set"])
             speeds.append(r["speed"])
             time_lefts.append(r["time_left"])
             max_times.append(r["max_time"])
@@ -387,4 +373,5 @@ def save_order():
     return jsonify({"status": "Order saved successfully"}), 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.getenv("FLASK_PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=True)

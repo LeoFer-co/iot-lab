@@ -1,13 +1,15 @@
+import os
 import paho.mqtt.client as mqtt
 import sqlite3
 import json
 from datetime import datetime, timedelta
 
 def local_timestamp():
-    # Ajusta la hora restando 5 horas a la hora UTC
-    return (datetime.utcnow() - timedelta(hours=5)).strftime("%Y-%m-%d %H:%M:%S")
+    # Obtiene el desfase horario desde la variable de entorno (por defecto 5)
+    tz_offset = int(os.getenv("TIMEZONE_OFFSET", "5"))
+    return (datetime.utcnow() - timedelta(hours=tz_offset)).strftime("%Y-%m-%d %H:%M:%S")
 
-DB_PATH = "data/data.db"
+DB_PATH = os.getenv("DB_PATH", "data/data.db")
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
@@ -21,7 +23,8 @@ cursor.execute('''
     device_name TEXT UNIQUE,
     device_type TEXT,
     last_status TEXT,
-    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
+    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    position INTEGER DEFAULT 0
   )
 ''')
 
@@ -134,7 +137,7 @@ def on_message(client, userdata, msg):
     try:
         payload = msg.payload.decode()
         data = json.loads(payload)
-        subtopic = msg.topic.split("/")[2]  # 'estacion', 'microdos', 'reactor', etc.
+        subtopic = msg.topic.split("/")[2]  # 'estacion', 'microdos', etc.
         device_name = data.get("device_name", subtopic)
         
         if subtopic == "estacion":
@@ -161,7 +164,7 @@ def on_message(client, userdata, msg):
         
         elif subtopic == "reactor":
             temp = data.get("temp", 0)
-            temp_set = data.get("temp_set", 0)  # Nuevo dato: temperatura seteada
+            temp_set = data.get("temp_set", 0)
             speed = data.get("speed", 0)
             time_left = data.get("time_left", 0)
             max_time = data.get("max_time", 60)
@@ -223,8 +226,8 @@ def on_message(client, userdata, msg):
     except Exception as e:
         print("Error procesando mensaje:", e)
 
-broker = "broker"  # En Docker Compose, usamos el nombre del servicio
-port = 1883
+broker = os.getenv("MQTT_BROKER", "broker")
+port = int(os.getenv("MQTT_PORT", "1883"))
 
 client = mqtt.Client()
 client.on_connect = on_connect
