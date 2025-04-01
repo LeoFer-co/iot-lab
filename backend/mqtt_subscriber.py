@@ -5,16 +5,12 @@ import json
 from datetime import datetime, timedelta
 
 def local_timestamp():
-    # Obtiene el desfase horario desde la variable de entorno (por defecto 5)
     tz_offset = int(os.getenv("TIMEZONE_OFFSET", "5"))
     return (datetime.utcnow() - timedelta(hours=tz_offset)).strftime("%Y-%m-%d %H:%M:%S")
 
 DB_PATH = os.getenv("DB_PATH", "data/data.db")
-
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
-
-# Crear tablas si no existen
 
 # Tabla de dispositivos
 cursor.execute('''
@@ -28,7 +24,6 @@ cursor.execute('''
   )
 ''')
 
-# Intentamos agregar la columna "position" si no existe
 try:
     cursor.execute("ALTER TABLE devices ADD COLUMN position INTEGER DEFAULT 0")
     conn.commit()
@@ -72,7 +67,7 @@ cursor.execute('''
   )
 ''')
 
-# Agregar la columna "speed_set" si no existe
+# Agregar columna "speed_set" si no existe
 try:
     cursor.execute("ALTER TABLE measurements_reactor ADD COLUMN speed_set REAL DEFAULT 0")
     conn.commit()
@@ -174,7 +169,7 @@ def on_message(client, userdata, msg):
             temp = data.get("temp", 0)
             temp_set = data.get("temp_set", 0)
             speed = data.get("speed", 0)
-            speed_set = data.get("speed_set", 0)  # Nuevo valor enviado por la ESP
+            speed_set = data.get("speed_set", 0)  # nuevo valor enviado por la ESP
             time_left = data.get("time_left", 0)
             max_time = data.get("max_time", 60)
             state = data.get("state", "inactivo")

@@ -6,9 +6,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Cargamos Chart.js para la gráfica de temperatura y velocidad -->
+    <!-- Cargamos Chart.js para las gráficas y ProgressBar.js para el gauge -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- ProgressBar.js para el gauge de tiempo -->
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
 
     <style>
@@ -19,8 +18,8 @@
             --accent: #D07B2C;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
-            --gauge-time-color: #FF5A5F; /* color para gauge de tiempo */
-            --chart-temp-color: #5FC3E4; /* color para gráfica de temperatura */
+            /* Color para el gauge de tiempo */
+            --gauge-time-color: #FF5A5F;
         }
 
         body {
@@ -100,6 +99,7 @@
         .chart-container {
             width: 100%;
             height: 300px;
+            margin-top: 20px;
         }
 
         /* Círculo para el estado actual */
@@ -127,6 +127,18 @@
             margin-top: 20px;
             color: var(--text-secondary);
         }
+
+        /* Estilos para los recuadros de valores numéricos */
+        .value-box {
+            display: inline-block;
+            padding: 10px;
+            margin: 5px;
+            border: 2px solid #FFFFFF;
+            border-radius: 4px;
+            min-width: 150px;
+            text-align: center;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -136,7 +148,7 @@
     </header>
 
     <div class="dashboard">
-        <!-- Fila con 2 paneles: Tiempo y Estado Actual -->
+        <!-- Panel con Tiempo y Estado Actual -->
         <div class="panel-row">
             <!-- Tiempo -->
             <div class="panel">
@@ -148,22 +160,39 @@
                     <span id="maxTimeLabel">Set: 0 s</span>
                 </p>
             </div>
-            <!-- Estado Actual (círculo con color) -->
+            <!-- Estado Actual -->
             <div class="panel">
                 <h3>Estado Actual</h3>
                 <div id="reactorStateCircle" class="state-circle">--</div>
             </div>
         </div>
 
-        <!-- Gráfica de Temperatura y Velocidad -->
+        <!-- Gráfica de Temperatura -->
         <div class="chart-container">
-            <canvas id="reactorTempChart"></canvas>
+            <canvas id="tempChart"></canvas>
+        </div>
+        <!-- Recuadros para Temperatura -->
+        <div style="text-align: center;">
+            <div class="value-box" id="tempActualBox">
+                Actual Temp: <span id="tempActualText">--</span> °C
+            </div>
+            <div class="value-box" id="tempSetBox">
+                Set Temp: <span id="tempSetText">--</span> °C
+            </div>
         </div>
 
-        <!-- Valores seteados (temp y velocidad) debajo de la gráfica -->
-        <div style="text-align: center; margin-top: 20px;">
-            <p>Temperatura Seteada: <span id="tempSetText">--</span> °C</p>
-            <p>Velocidad Seteada: <span id="speedSetText">--</span> rpm</p>
+        <!-- Gráfica de Velocidad -->
+        <div class="chart-container">
+            <canvas id="speedChart"></canvas>
+        </div>
+        <!-- Recuadros para Velocidad -->
+        <div style="text-align: center;">
+            <div class="value-box" id="speedActualBox">
+                Actual Speed: <span id="speedActualText">--</span> rpm
+            </div>
+            <div class="value-box" id="speedSetBox">
+                Set Speed: <span id="speedSetText">--</span> rpm
+            </div>
         </div>
     </div>
 
@@ -176,44 +205,19 @@
     </footer>
 
     <script>
-    // ==========================
-    //   1) Configuración de la gráfica
-    // ==========================
-    const tempCtx = document.getElementById('reactorTempChart').getContext('2d');
-
-    // Datos iniciales inyectados desde Flask:
+    // Datos inyectados desde Flask
     const timestamps = {{ timestamps|tojson }};
     const temps = {{ temps|tojson }};
     const tempSets = {{ temp_sets|tojson }};
     const speeds = {{ speeds|tojson }};
     const speedSets = {{ speed_sets|default([])|tojson }};
 
-    // Línea de temperatura seteada
+    // Preparación de datos para la gráfica de Temperatura
     const tempSetValue = tempSets.length > 0 ? tempSets[tempSets.length - 1] : 0;
     const tempSetLineArray = timestamps.map(() => tempSetValue);
 
-    // Línea de velocidad seteada
-    const speedSetValue = speedSets.length > 0 ? speedSets[speedSets.length - 1] : 0;
-    const speedSetLineArray = timestamps.map(() => speedSetValue);
-
-    // Cálculo de color para la línea de temperatura seteada (según tolerancia ±3 °C)
-    const tolerance = 3;
-    const currentTemp = temps.length > 0 ? temps[temps.length - 1] : 0;
-    let setLineColor;
-    if (currentTemp < tempSetValue - tolerance) {
-        setLineColor = "#5A9BFF";  // Azul: demasiado frío
-    } else if (currentTemp > tempSetValue + tolerance) {
-        setLineColor = "#FF5A5F";  // Rojo: demasiado caliente
-    } else {
-        setLineColor = "#5FC36F";  // Verde: dentro del rango
-    }
-
-    // Creación del chart con 4 datasets:
-    //  - Temperatura real (eje izquierdo)
-    //  - Temperatura seteada (eje izquierdo)
-    //  - Velocidad real (eje derecho)
-    //  - Velocidad seteada (eje derecho)
-    const reactorTempChart = new Chart(tempCtx, {
+    const tempCtx = document.getElementById('tempChart').getContext('2d');
+    const tempChart = new Chart(tempCtx, {
         type: 'line',
         data: {
             labels: timestamps,
@@ -223,34 +227,15 @@
                     data: temps,
                     borderColor: '#FF5A5F',
                     fill: false,
-                    tension: 0.1,
-                    yAxisID: 'tempAxis'
+                    tension: 0.1
                 },
                 {
                     label: 'Temp Seteada (°C)',
                     data: tempSetLineArray,
-                    borderColor: setLineColor,
+                    borderColor: '#AAAAAA', // se actualizará dinámicamente
                     fill: false,
                     tension: 0,
-                    borderDash: [5, 5],
-                    yAxisID: 'tempAxis'
-                },
-                {
-                    label: 'Velocidad (rpm)',
-                    data: speeds,
-                    borderColor: '#FFC45F',
-                    fill: false,
-                    tension: 0.1,
-                    yAxisID: 'speedAxis'
-                },
-                {
-                    label: 'Velocidad Seteada (rpm)',
-                    data: speedSetLineArray,
-                    borderColor: '#FFFF00',
-                    fill: false,
-                    tension: 0,
-                    borderDash: [5, 5],
-                    yAxisID: 'speedAxis'
+                    borderDash: [5, 5]
                 }
             ]
         },
@@ -267,122 +252,193 @@
                         },
                         maxTicksLimit: 6
                     },
-                    title: {
-                        display: true,
-                        text: 'Hora',
-                        color: "#FFFFFF"
-                    }
+                    title: { display: true, text: 'Hora', color: "#FFFFFF" }
                 },
-                tempAxis: {
-                    position: 'left',
+                y: {
                     ticks: { color: "#FFFFFF" },
                     title: { display: true, text: 'Temperatura (°C)', color: "#FFFFFF" }
-                },
-                speedAxis: {
-                    position: 'right',
-                    ticks: { color: "#FFFFFF" },
-                    title: { display: true, text: 'Velocidad (rpm)', color: "#FFFFFF" },
-                    grid: {
-                        drawOnChartArea: false
-                    }
                 }
             },
-            plugins: {
-                legend: { labels: { color: "#FFFFFF" } }
-            }
+            plugins: { legend: { labels: { color: "#FFFFFF" } } }
         }
     });
 
-    // ==========================
-    //   2) Gauge de Tiempo
-    // ==========================
-    let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
-      color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-time-color').trim() || '#FF5A5F',
-      strokeWidth: 8,
-      trailColor: '#2A333B',
-      trailWidth: 8,
-      easing: 'easeInOut',
-      duration: 500,
-      text: { value: '' },
-      from: { color: '#FF5A5F' },
-      to: { color: '#FF5A5F' },
-      step: function(state, circle) {
-        circle.path.setAttribute('stroke', state.color);
-      }
+    // Preparación de datos para la gráfica de Velocidad
+    const speedSetValue = speedSets.length > 0 ? speedSets[speedSets.length - 1] : 0;
+    const speedSetLineArray = timestamps.map(() => speedSetValue);
+
+    const speedCtx = document.getElementById('speedChart').getContext('2d');
+    const speedChart = new Chart(speedCtx, {
+        type: 'line',
+        data: {
+            labels: timestamps,
+            datasets: [
+                {
+                    label: 'Velocidad (rpm)',
+                    data: speeds,
+                    borderColor: '#FFC45F',
+                    fill: false,
+                    tension: 0.1
+                },
+                {
+                    label: 'Velocidad Seteada (rpm)',
+                    data: speedSetLineArray,
+                    borderColor: '#FFFF00', // se actualizará dinámicamente
+                    fill: false,
+                    tension: 0,
+                    borderDash: [5, 5]
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    ticks: {
+                        color: "#FFFFFF",
+                        callback: function(value) {
+                            const label = this.getLabelForValue(value);
+                            return label.substring(11,16);
+                        },
+                        maxTicksLimit: 6
+                    },
+                    title: { display: true, text: 'Hora', color: "#FFFFFF" }
+                },
+                y: {
+                    ticks: { color: "#FFFFFF" },
+                    title: { display: true, text: 'Velocidad (rpm)', color: "#FFFFFF" }
+                }
+            },
+            plugins: { legend: { labels: { color: "#FFFFFF" } } }
+        }
     });
 
-    // ==========================
-    //   3) Actualización en tiempo real
-    // ==========================
-    async function updateReactorData() {
-      try {
-        const resp = await fetch('{{ url_for("device_reactor_data", device_name=device.device_name) }}');
-        const data = await resp.json();
-        // Se esperan en data: timestamps, temps, temp_sets, speeds, speed_sets, time_lefts, max_times, states
+    // Tolerancias
+    const tempTolerance = 3;
+    const speedTolerance = 10;
 
-        // Actualizamos la gráfica:
-        reactorTempChart.data.labels = data.timestamps;
-
-        // Temperatura real y su set
-        reactorTempChart.data.datasets[0].data = data.temps;
-        const newTempSetVal = data.temp_sets.length > 0 ? data.temp_sets[data.temp_sets.length - 1] : 0;
-        reactorTempChart.data.datasets[1].data = data.timestamps.map(() => newTempSetVal);
-
-        // Recalcular el color para la línea de temp seteada:
-        const lastTemp = data.temps.length > 0 ? data.temps[data.temps.length - 1] : 0;
-        let newSetColor;
-        if (lastTemp < newTempSetVal - tolerance) {
-            newSetColor = "#5A9BFF";  // azul
-        } else if (lastTemp > newTempSetVal + tolerance) {
-            newSetColor = "#FF5A5F";  // rojo
+    // Función para determinar el color según la proximidad
+    function getProximityColor(actual, setVal, tolerance) {
+        if (actual < setVal - tolerance) {
+            return "#5A9BFF";  // Azul
+        } else if (actual > setVal + tolerance) {
+            return "#FF5A5F";  // Rojo
         } else {
-            newSetColor = "#5FC36F";  // verde
+            return "#5FC36F";  // Verde
         }
-        reactorTempChart.data.datasets[1].borderColor = newSetColor;
-
-        // Velocidad real y su set
-        reactorTempChart.data.datasets[2].data = data.speeds;
-        const newSpeedSetVal = data.speed_sets && data.speed_sets.length > 0 ? data.speed_sets[data.speed_sets.length - 1] : 0;
-        reactorTempChart.data.datasets[3].data = data.timestamps.map(() => newSpeedSetVal);
-
-        reactorTempChart.update();
-
-        // Actualizamos los textos debajo de la gráfica:
-        document.getElementById('tempSetText').textContent = newTempSetVal.toFixed(1);
-        document.getElementById('speedSetText').textContent = newSpeedSetVal.toFixed(0);
-
-        // Actualizamos el gauge de Tiempo y la etiqueta:
-        const lastIndex = data.temps.length - 1;
-        if (lastIndex < 0) return;
-        const currentTime = data.time_lefts[lastIndex] || 0;
-        const currentMaxTime = data.max_times[lastIndex] || 60;
-        let ratioTime = currentTime / currentMaxTime;
-        if (ratioTime > 1) ratioTime = 1;
-        timeGauge.animate(ratioTime, { duration: 500 });
-        document.getElementById('timeGaugeText').textContent = currentTime + " s";
-        document.getElementById('maxTimeLabel').textContent = "Set: " + currentMaxTime + " s";
-
-        // Actualizamos el estado actual:
-        const currentState = data.states[lastIndex] || "inactivo";
-        const stateCircle = document.getElementById('reactorStateCircle');
-        stateCircle.style.backgroundColor = getColorForReactorState(currentState);
-        stateCircle.textContent = currentState;
-
-      } catch (err) {
-        console.error("Error al actualizar datos del Reactor:", err);
-      }
     }
 
+    // Inicialización de los recuadros con valores iniciales
+    const initialTemp = temps.length > 0 ? temps[temps.length - 1] : 0;
+    const initialSpeed = speeds.length > 0 ? speeds[speeds.length - 1] : 0;
+    document.getElementById('tempActualText').textContent = initialTemp.toFixed(1);
+    document.getElementById('tempSetText').textContent = tempSetValue.toFixed(1);
+    document.getElementById('speedActualText').textContent = initialSpeed.toFixed(0);
+    document.getElementById('speedSetText').textContent = speedSetValue.toFixed(0);
+
+    // Actualización inicial del color de la línea de seteo en las gráficas
+    let tempSetColor = getProximityColor(initialTemp, tempSetValue, tempTolerance);
+    tempChart.data.datasets[1].borderColor = tempSetColor;
+    tempChart.update();
+
+    let speedSetColor = getProximityColor(initialSpeed, speedSetValue, speedTolerance);
+    speedChart.data.datasets[1].borderColor = speedSetColor;
+    speedChart.update();
+
+    // Actualización inicial de los colores de los recuadros
+    document.getElementById('tempActualBox').style.backgroundColor = getProximityColor(initialTemp, tempSetValue, tempTolerance);
+    document.getElementById('tempSetBox').style.backgroundColor = getProximityColor(initialTemp, tempSetValue, tempTolerance);
+    document.getElementById('speedActualBox').style.backgroundColor = getProximityColor(initialSpeed, speedSetValue, speedTolerance);
+    document.getElementById('speedSetBox').style.backgroundColor = getProximityColor(initialSpeed, speedSetValue, speedTolerance);
+
+    // Gauge para Tiempo
+    let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
+        color: '#FF5A5F',
+        strokeWidth: 8,
+        trailColor: '#2A333B',
+        trailWidth: 8,
+        easing: 'easeInOut',
+        duration: 500,
+        text: { value: '' },
+        from: { color: '#FF5A5F' },
+        to: { color: '#FF5A5F' },
+        step: function(state, circle) {
+            circle.path.setAttribute('stroke', state.color);
+        }
+    });
+
+    // Función para actualizar datos en tiempo real
+    async function updateReactorData() {
+        try {
+            const resp = await fetch('{{ url_for("device_reactor_data", device_name=device.device_name) }}');
+            const data = await resp.json();
+            // data: timestamps, temps, temp_sets, speeds, speed_sets, time_lefts, max_times, states
+
+            // Actualización de la gráfica de Temperatura
+            tempChart.data.labels = data.timestamps;
+            tempChart.data.datasets[0].data = data.temps;
+            const newTempSetVal = data.temp_sets.length > 0 ? data.temp_sets[data.temp_sets.length - 1] : 0;
+            tempChart.data.datasets[1].data = data.timestamps.map(() => newTempSetVal);
+            const lastTemp = data.temps.length > 0 ? data.temps[data.temps.length - 1] : 0;
+            let newTempSetColor = getProximityColor(lastTemp, newTempSetVal, tempTolerance);
+            tempChart.data.datasets[1].borderColor = newTempSetColor;
+            tempChart.update();
+
+            // Actualización de la gráfica de Velocidad
+            speedChart.data.labels = data.timestamps;
+            speedChart.data.datasets[0].data = data.speeds;
+            const newSpeedSetVal = data.speed_sets && data.speed_sets.length > 0 ? data.speed_sets[data.speed_sets.length - 1] : 0;
+            speedChart.data.datasets[1].data = data.timestamps.map(() => newSpeedSetVal);
+            const lastSpeed = data.speeds.length > 0 ? data.speeds[data.speeds.length - 1] : 0;
+            let newSpeedSetColor = getProximityColor(lastSpeed, newSpeedSetVal, speedTolerance);
+            speedChart.data.datasets[1].borderColor = newSpeedSetColor;
+            speedChart.update();
+
+            // Actualización de los recuadros numéricos
+            document.getElementById('tempActualText').textContent = lastTemp.toFixed(1);
+            document.getElementById('tempSetText').textContent = newTempSetVal.toFixed(1);
+            document.getElementById('speedActualText').textContent = lastSpeed.toFixed(0);
+            document.getElementById('speedSetText').textContent = newSpeedSetVal.toFixed(0);
+            document.getElementById('tempActualBox').style.backgroundColor = getProximityColor(lastTemp, newTempSetVal, tempTolerance);
+            document.getElementById('tempSetBox').style.backgroundColor = getProximityColor(lastTemp, newTempSetVal, tempTolerance);
+            document.getElementById('speedActualBox').style.backgroundColor = getProximityColor(lastSpeed, newSpeedSetVal, speedTolerance);
+            document.getElementById('speedSetBox').style.backgroundColor = getProximityColor(lastSpeed, newSpeedSetVal, speedTolerance);
+
+            // Actualización del gauge de Tiempo
+            const lastIndex = data.temps.length - 1;
+            if (lastIndex < 0) return;
+            const currentTime = data.time_lefts[lastIndex] || 0;
+            const currentMaxTime = data.max_times[lastIndex] || 60;
+            let ratioTime = currentTime / currentMaxTime;
+            if (ratioTime > 1) ratioTime = 1;
+            timeGauge.animate(ratioTime, { duration: 500 });
+            document.getElementById('timeGaugeText').textContent = currentTime + " s";
+            document.getElementById('maxTimeLabel').textContent = "Set: " + currentMaxTime + " s";
+
+            // Actualización del estado actual
+            const currentState = data.states[lastIndex] || "inactivo";
+            const stateCircle = document.getElementById('reactorStateCircle');
+            stateCircle.style.backgroundColor = getColorForReactorState(currentState);
+            stateCircle.textContent = currentState;
+
+        } catch (err) {
+            console.error("Error updating reactor data:", err);
+        }
+    }
+
+    // Función para determinar color según el estado del reactor
     function getColorForReactorState(state) {
-      switch(state.toLowerCase()) {
-        case "dm running": return "#FF9F5F"; // Desmineralización
-        case "dp running": return "#FF5A5F"; // Desproteinización
-        case "da running": return "#5FC3E4"; // Desacetilación
-        case "suministro": return "#FFC45F";
-        case "lavando":    return "#96FF5A";
-        case "inactivo":   return "#B0B0B0";
-        default:           return "#B0B0B0";
-      }
+        switch(state.toLowerCase()) {
+            case "dm running": return "#D35400";    // dark orange
+            case "dp running": return "#C0392B";      // dark red
+            case "da running": return "#2980B9";      // dark blue
+            case "suministro": return "#F39C12";      // dark gold
+            case "lavando":    return "#27AE60";      // dark green
+            case "expulsion":  return "#8E44AD";      // dark purple
+            case "inactivo":   return "#7F8C8D";      // gray
+            default:           return "#7F8C8D";
+        }
     }
 
     setInterval(updateReactorData, 1000);

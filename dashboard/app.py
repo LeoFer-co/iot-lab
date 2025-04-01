@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 OFFLINE_THRESHOLD = 10  # segundos para marcar desconexión
 
-# Lista estática de dispositivos que queremos ver siempre en el Home (incluyendo cámara)
+# Lista estática de dispositivos (incluyendo cámara)
 PREDEFINED_DEVICES = [
     ("estacion", "estacion"),
     ("microdos", "microdos"),
@@ -32,8 +32,7 @@ def home():
 def devices_data():
     conn = get_db()
     cursor = conn.cursor()
-
-    # Aseguramos que cada dispositivo predefinido (excepto "camera") exista en la DB con position=9999 por defecto
+    # Aseguramos que cada dispositivo predefinido (excepto "camera") exista en la DB
     for (dev_name, dev_type) in PREDEFINED_DEVICES:
         if dev_name == "camera":
             continue
@@ -66,8 +65,6 @@ def devices_data():
         except Exception:
             dev_dict["status_final"] = "Desconocido"
         final_list.append(dev_dict)
-
-    # Agregamos placeholders para dispositivos predefinidos que no estén en DB
     for (dev_name, dev_type) in PREDEFINED_DEVICES:
         exists = any(d["device_name"] == dev_name for d in final_list)
         if not exists:
@@ -141,7 +138,7 @@ def device_detail(device_name):
             temps.append(r["temp"])
             temp_sets.append(r["temp_set"])
             speeds.append(r["speed"])
-            speed_sets.append(r["speed_set"])
+            speed_sets.append(r["speed_set"])  # se incluye la nueva columna
             time_lefts.append(r["time_left"])
             max_times.append(r["max_time"])
             states.append(r["state"])
@@ -183,21 +180,15 @@ def device_estacion_data(device_name):
     if not dev:
         conn.close()
         return jsonify({"error": "No existe la estación con ese nombre"}), 404
-
     cursor.execute("SELECT * FROM measurements_estacion ORDER BY id DESC LIMIT 30")
     rows = cursor.fetchall()
     conn.close()
-
-    timestamps = []
-    temps = []
-    hums = []
-    press = []
+    timestamps, temps, hums, press = [], [], [], []
     for r in reversed(rows):
         timestamps.append(r["timestamp"])
         temps.append(r["temp"])
         hums.append(r["hum"])
         press.append(r["pres"])
-
     return jsonify({
         "timestamps": timestamps,
         "temps": temps,
@@ -214,11 +205,9 @@ def device_microdos_data(device_name):
     if not dev:
         conn.close()
         return jsonify({"error": "No existe microdos con ese nombre"}), 404
-
     cursor.execute("SELECT * FROM measurements_microdos ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
     conn.close()
-
     if row:
         return jsonify({
             "status": row["status"],
@@ -237,20 +226,10 @@ def device_reactor_data(device_name):
     if not dev:
         conn.close()
         return jsonify({"error": "No existe reactor con ese nombre"}), 404
-
     cursor.execute("SELECT * FROM measurements_reactor ORDER BY id DESC LIMIT 30")
     rows = cursor.fetchall()
     conn.close()
-
-    timestamps = []
-    temps = []
-    temp_sets = []
-    speeds = []
-    speed_sets = []
-    time_lefts = []
-    max_times = []
-    states = []
-
+    timestamps, temps, temp_sets, speeds, speed_sets, time_lefts, max_times, states = [], [], [], [], [], [], [], []
     for r in reversed(rows):
         timestamps.append(r["timestamp"])
         temps.append(r["temp"])
@@ -260,7 +239,6 @@ def device_reactor_data(device_name):
         time_lefts.append(r["time_left"])
         max_times.append(r["max_time"])
         states.append(r["state"])
-
     return jsonify({
         "timestamps": timestamps,
         "temps": temps,
@@ -281,11 +259,9 @@ def device_lc_shaker_data(device_name):
     if not dev:
         conn.close()
         return jsonify({"error": "No existe LC_Shaker con ese nombre"}), 404
-
     cursor.execute("SELECT * FROM measurements_lc_shaker ORDER BY id DESC LIMIT 30")
     rows = cursor.fetchall()
     conn.close()
-
     timestamps, speeds, amp_mayors, amp_menors, oscs, time_lefts, max_times, states = [], [], [], [], [], [], [], []
     for r in reversed(rows):
         timestamps.append(r["timestamp"])
@@ -316,7 +292,6 @@ def device_lecob50_data(device_name):
     if not dev:
         conn.close()
         return jsonify({"error": "No existe LECOB 50 con ese nombre"}), 404
-
     cursor.execute("SELECT * FROM measurements_lecob50 ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
     conn.close()
@@ -340,14 +315,11 @@ def device_uvale_data(device_name):
     if not dev:
         conn.close()
         return jsonify({"error": "No existe UV ale con ese nombre"}), 404
-
     cursor.execute("SELECT * FROM measurements_uvale ORDER BY id DESC LIMIT 30")
     rows = cursor.fetchall()
     conn.close()
-
     if not rows:
         return jsonify({"error": "Sin datos aún"}), 200
-
     timestamps = []
     hum = []
     temp = []
@@ -355,7 +327,6 @@ def device_uvale_data(device_name):
         timestamps.append(r["timestamp"])
         hum.append(r["hum"])
         temp.append(r["temp"])
-
     last = rows[0]
     return jsonify({
         "distance": last["distance"],
@@ -375,7 +346,6 @@ def save_order():
     order = data.get("order", [])
     if not order:
         return jsonify({"error": "No order provided"}), 400
-
     conn = get_db()
     cursor = conn.cursor()
     for pos, device_name in enumerate(order):
