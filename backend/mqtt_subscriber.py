@@ -72,6 +72,14 @@ cursor.execute('''
   )
 ''')
 
+# Agregar la columna "speed_set" si no existe
+try:
+    cursor.execute("ALTER TABLE measurements_reactor ADD COLUMN speed_set REAL DEFAULT 0")
+    conn.commit()
+except sqlite3.OperationalError as e:
+    if "duplicate column name" not in str(e).lower():
+        print("Error al agregar la columna 'speed_set':", e)
+
 # Medidas para LC_Shaker
 cursor.execute('''
   CREATE TABLE IF NOT EXISTS measurements_lc_shaker (
@@ -166,13 +174,14 @@ def on_message(client, userdata, msg):
             temp = data.get("temp", 0)
             temp_set = data.get("temp_set", 0)
             speed = data.get("speed", 0)
+            speed_set = data.get("speed_set", 0)  # Nuevo valor enviado por la ESP
             time_left = data.get("time_left", 0)
             max_time = data.get("max_time", 60)
             state = data.get("state", "inactivo")
             cursor.execute('''
-              INSERT INTO measurements_reactor (timestamp, temp, temp_set, speed, time_left, max_time, state)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (local_timestamp(), temp, temp_set, speed, time_left, max_time, state))
+              INSERT INTO measurements_reactor (timestamp, temp, temp_set, speed, speed_set, time_left, max_time, state)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (local_timestamp(), temp, temp_set, speed, speed_set, time_left, max_time, state))
             conn.commit()
             update_device(device_name, "reactor", state)
         

@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>{{ device.device_name|capitalize }} - Reactor Quitosano</title>
+    <title>Reactor IoT Quitosano</title>
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Cargamos Chart.js para la gráfica de temperatura -->
+    <!-- Cargamos Chart.js para la gráfica de temperatura y velocidad -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- ProgressBar.js para gauges radiales (si se requieren) -->
+    <!-- ProgressBar.js para el gauge de tiempo -->
     <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
 
     <style>
@@ -19,9 +19,8 @@
             --accent: #D07B2C;
             --text-color: #F0F0F0;
             --text-secondary: #B0B0B0;
-            --gauge-speed-color: #FFC45F; /* color para gauge de velocidad */
             --gauge-time-color: #FF5A5F; /* color para gauge de tiempo */
-            --chart-temp-color: #5FC3E4; /* color para gráfica de temperatura (por defecto) */
+            --chart-temp-color: #5FC3E4; /* color para gráfica de temperatura */
         }
 
         body {
@@ -102,6 +101,7 @@
             width: 100%;
             height: 300px;
         }
+
         /* Círculo para el estado actual */
         .state-circle {
             width: 150px;
@@ -132,27 +132,20 @@
 <body>
     <header>
         <img src="{{ url_for('static', filename='images/logo.png') }}" alt="LC Projects Logo" />
-        <h1>{{ device.device_name|capitalize }} - Reactor Quitosano</h1>
+        <h1>Reactor IoT Quitosano</h1>
     </header>
 
     <div class="dashboard">
-        <!-- Fila con 3 paneles: Velocidad, Tiempo Restante, Estado Actual -->
+        <!-- Fila con 2 paneles: Tiempo y Estado Actual -->
         <div class="panel-row">
-            <!-- Velocidad -->
+            <!-- Tiempo -->
             <div class="panel">
-                <h3>Velocidad (rpm)</h3>
-                <div class="gauge-container" id="speedGaugeContainer">
-                    <div id="speedGaugeText" class="gauge-text">0 rpm</div>
-                </div>
-            </div>
-            <!-- Tiempo Restante -->
-            <div class="panel">
-                <h3>Tiempo Restante</h3>
+                <h3>Tiempo</h3>
                 <div class="gauge-container" id="timeGaugeContainer">
                     <div id="timeGaugeText" class="gauge-text">0 s</div>
                 </div>
                 <p style="margin-top:10px;font-size:0.9rem;">
-                    <span id="maxTimeLabel">max: 0 s</span>
+                    <span id="maxTimeLabel">Set: 0 s</span>
                 </p>
             </div>
             <!-- Estado Actual (círculo con color) -->
@@ -162,9 +155,15 @@
             </div>
         </div>
 
-        <!-- Gráfica de Temperatura -->
+        <!-- Gráfica de Temperatura y Velocidad -->
         <div class="chart-container">
             <canvas id="reactorTempChart"></canvas>
+        </div>
+
+        <!-- Valores seteados (temp y velocidad) debajo de la gráfica -->
+        <div style="text-align: center; margin-top: 20px;">
+            <p>Temperatura Seteada: <span id="tempSetText">--</span> °C</p>
+            <p>Velocidad Seteada: <span id="speedSetText">--</span> rpm</p>
         </div>
     </div>
 
@@ -177,31 +176,43 @@
     </footer>
 
     <script>
-    // 1) Gráfica de Temperatura (Chart.js)
+    // ==========================
+    //   1) Configuración de la gráfica
+    // ==========================
     const tempCtx = document.getElementById('reactorTempChart').getContext('2d');
-    // Se esperan 4 arrays del endpoint: timestamps, temps, temp_sets, y otros (speeds, etc. no se usan acá)
-    // Asumimos que estos arrays están disponibles vía render_template en la variable "timestamps", "temps" y "temp_sets"
-    // Para la línea de "temperatura seteada", usamos el último valor del array temp_sets y lo repetimos
+
+    // Datos iniciales inyectados desde Flask:
     const timestamps = {{ timestamps|tojson }};
     const temps = {{ temps|tojson }};
     const tempSets = {{ temp_sets|tojson }};
+    const speeds = {{ speeds|tojson }};
+    const speedSets = {{ speed_sets|default([])|tojson }};
 
-    const setValue = tempSets.length > 0 ? tempSets[tempSets.length - 1] : 0;
-    const setLineArray = timestamps.map(() => setValue);
+    // Línea de temperatura seteada
+    const tempSetValue = tempSets.length > 0 ? tempSets[tempSets.length - 1] : 0;
+    const tempSetLineArray = timestamps.map(() => tempSetValue);
 
-    // Tolerancia de ±3 °C
+    // Línea de velocidad seteada
+    const speedSetValue = speedSets.length > 0 ? speedSets[speedSets.length - 1] : 0;
+    const speedSetLineArray = timestamps.map(() => speedSetValue);
+
+    // Cálculo de color para la línea de temperatura seteada (según tolerancia ±3 °C)
     const tolerance = 3;
     const currentTemp = temps.length > 0 ? temps[temps.length - 1] : 0;
-
     let setLineColor;
-    if (currentTemp < setValue - tolerance) {
+    if (currentTemp < tempSetValue - tolerance) {
         setLineColor = "#5A9BFF";  // Azul: demasiado frío
-    } else if (currentTemp > setValue + tolerance) {
+    } else if (currentTemp > tempSetValue + tolerance) {
         setLineColor = "#FF5A5F";  // Rojo: demasiado caliente
     } else {
         setLineColor = "#5FC36F";  // Verde: dentro del rango
     }
 
+    // Creación del chart con 4 datasets:
+    //  - Temperatura real (eje izquierdo)
+    //  - Temperatura seteada (eje izquierdo)
+    //  - Velocidad real (eje derecho)
+    //  - Velocidad seteada (eje derecho)
     const reactorTempChart = new Chart(tempCtx, {
         type: 'line',
         data: {
@@ -212,15 +223,34 @@
                     data: temps,
                     borderColor: '#FF5A5F',
                     fill: false,
-                    tension: 0.1
+                    tension: 0.1,
+                    yAxisID: 'tempAxis'
                 },
                 {
                     label: 'Temp Seteada (°C)',
-                    data: setLineArray,
+                    data: tempSetLineArray,
                     borderColor: setLineColor,
                     fill: false,
                     tension: 0,
-                    borderDash: [5, 5]
+                    borderDash: [5, 5],
+                    yAxisID: 'tempAxis'
+                },
+                {
+                    label: 'Velocidad (rpm)',
+                    data: speeds,
+                    borderColor: '#FFC45F',
+                    fill: false,
+                    tension: 0.1,
+                    yAxisID: 'speedAxis'
+                },
+                {
+                    label: 'Velocidad Seteada (rpm)',
+                    data: speedSetLineArray,
+                    borderColor: '#FFFF00',
+                    fill: false,
+                    tension: 0,
+                    borderDash: [5, 5],
+                    yAxisID: 'speedAxis'
                 }
             ]
         },
@@ -231,8 +261,8 @@
                 x: {
                     ticks: {
                         color: "#FFFFFF",
-                        callback: function(value, index, ticks) {
-                            let label = this.getLabelForValue(value);
+                        callback: function(value) {
+                            const label = this.getLabelForValue(value);
                             return label.substring(11,16);
                         },
                         maxTicksLimit: 6
@@ -243,9 +273,18 @@
                         color: "#FFFFFF"
                     }
                 },
-                y: {
+                tempAxis: {
+                    position: 'left',
                     ticks: { color: "#FFFFFF" },
-                    title: { display: true, text: 'Temperatura', color: "#FFFFFF" }
+                    title: { display: true, text: 'Temperatura (°C)', color: "#FFFFFF" }
+                },
+                speedAxis: {
+                    position: 'right',
+                    ticks: { color: "#FFFFFF" },
+                    title: { display: true, text: 'Velocidad (rpm)', color: "#FFFFFF" },
+                    grid: {
+                        drawOnChartArea: false
+                    }
                 }
             },
             plugins: {
@@ -254,22 +293,9 @@
         }
     });
 
-    // 2) Gauges radiales para Velocidad y Tiempo
-    let speedGauge = new ProgressBar.Circle('#speedGaugeContainer', {
-      color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-speed-color').trim() || '#FFC45F',
-      strokeWidth: 8,
-      trailColor: '#2A333B',
-      trailWidth: 8,
-      easing: 'easeInOut',
-      duration: 500,
-      text: { value: '' },
-      from: { color: '#FFC45F' },
-      to: { color: '#FFC45F' },
-      step: function(state, circle) {
-        circle.path.setAttribute('stroke', state.color);
-      }
-    });
-
+    // ==========================
+    //   2) Gauge de Tiempo
+    // ==========================
     let timeGauge = new ProgressBar.Circle('#timeGaugeContainer', {
       color: getComputedStyle(document.documentElement).getPropertyValue('--gauge-time-color').trim() || '#FF5A5F',
       strokeWidth: 8,
@@ -285,54 +311,58 @@
       }
     });
 
-    // 3) Actualización de la interfaz en tiempo real para el Reactor
+    // ==========================
+    //   3) Actualización en tiempo real
+    // ==========================
     async function updateReactorData() {
       try {
         const resp = await fetch('{{ url_for("device_reactor_data", device_name=device.device_name) }}');
         const data = await resp.json();
-        // Se espera que "data" incluya: timestamps, temps, temp_sets, speeds, time_lefts, max_times, states
+        // Se esperan en data: timestamps, temps, temp_sets, speeds, speed_sets, time_lefts, max_times, states
 
-        // Actualizamos la gráfica de Temperatura
+        // Actualizamos la gráfica:
         reactorTempChart.data.labels = data.timestamps;
-        reactorTempChart.data.datasets[0].data = data.temps;
-        // Para la línea horizontal de temp_set, usamos el último valor de data.temp_sets
-        const setVal = data.temp_sets && data.temp_sets.length > 0 ? data.temp_sets[data.temp_sets.length - 1] : 0;
-        reactorTempChart.data.datasets[1].data = data.timestamps.map(() => setVal);
 
-        // Recalculamos el color de la línea de temp_set según tolerancia ±3 °C
-        const currentTemp = data.temps && data.temps.length > 0 ? data.temps[data.temps.length - 1] : 0;
+        // Temperatura real y su set
+        reactorTempChart.data.datasets[0].data = data.temps;
+        const newTempSetVal = data.temp_sets.length > 0 ? data.temp_sets[data.temp_sets.length - 1] : 0;
+        reactorTempChart.data.datasets[1].data = data.timestamps.map(() => newTempSetVal);
+
+        // Recalcular el color para la línea de temp seteada:
+        const lastTemp = data.temps.length > 0 ? data.temps[data.temps.length - 1] : 0;
         let newSetColor;
-        if (currentTemp < setVal - tolerance) {
+        if (lastTemp < newTempSetVal - tolerance) {
             newSetColor = "#5A9BFF";  // azul
-        } else if (currentTemp > setVal + tolerance) {
+        } else if (lastTemp > newTempSetVal + tolerance) {
             newSetColor = "#FF5A5F";  // rojo
         } else {
             newSetColor = "#5FC36F";  // verde
         }
         reactorTempChart.data.datasets[1].borderColor = newSetColor;
+
+        // Velocidad real y su set
+        reactorTempChart.data.datasets[2].data = data.speeds;
+        const newSpeedSetVal = data.speed_sets && data.speed_sets.length > 0 ? data.speed_sets[data.speed_sets.length - 1] : 0;
+        reactorTempChart.data.datasets[3].data = data.timestamps.map(() => newSpeedSetVal);
+
         reactorTempChart.update();
 
-        // Actualización de los gauges y estado (manteniendo la lógica existente)
+        // Actualizamos los textos debajo de la gráfica:
+        document.getElementById('tempSetText').textContent = newTempSetVal.toFixed(1);
+        document.getElementById('speedSetText').textContent = newSpeedSetVal.toFixed(0);
+
+        // Actualizamos el gauge de Tiempo y la etiqueta:
         const lastIndex = data.temps.length - 1;
         if (lastIndex < 0) return;
-
-        // Velocidad
-        const currentSpeed = data.speeds[lastIndex] || 0;
-        let ratioSpeed = currentSpeed / 1000.0;
-        if (ratioSpeed > 1) ratioSpeed = 1;
-        speedGauge.animate(ratioSpeed, { duration: 500 });
-        document.getElementById('speedGaugeText').textContent = currentSpeed.toFixed(0) + " rpm";
-
-        // Tiempo de Operación
         const currentTime = data.time_lefts[lastIndex] || 0;
         const currentMaxTime = data.max_times[lastIndex] || 60;
         let ratioTime = currentTime / currentMaxTime;
         if (ratioTime > 1) ratioTime = 1;
         timeGauge.animate(ratioTime, { duration: 500 });
         document.getElementById('timeGaugeText').textContent = currentTime + " s";
-        document.getElementById('maxTimeLabel').textContent = "max: " + currentMaxTime + " s";
+        document.getElementById('maxTimeLabel').textContent = "Set: " + currentMaxTime + " s";
 
-        // Estado Actual
+        // Actualizamos el estado actual:
         const currentState = data.states[lastIndex] || "inactivo";
         const stateCircle = document.getElementById('reactorStateCircle');
         stateCircle.style.backgroundColor = getColorForReactorState(currentState);
@@ -343,12 +373,11 @@
       }
     }
 
-    // Función para asignar color según el estado actual del reactor
     function getColorForReactorState(state) {
       switch(state.toLowerCase()) {
-        case "dm running": return "#FF9F5F";    // Desmineralización
-        case "dp running": return "#FF5A5F";      // Desproteinización
-        case "da running": return "#5FC3E4";      // Desacetilación
+        case "dm running": return "#FF9F5F"; // Desmineralización
+        case "dp running": return "#FF5A5F"; // Desproteinización
+        case "da running": return "#5FC3E4"; // Desacetilación
         case "suministro": return "#FFC45F";
         case "lavando":    return "#96FF5A";
         case "inactivo":   return "#B0B0B0";
